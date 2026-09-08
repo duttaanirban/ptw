@@ -1,8 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Get a free hosted Postgres database in seconds: `npx create-db`
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -10,4 +5,259 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+enum UserRole {
+  REQUESTER
+  AREA_OWNER
+  SAFETY_OFFICER
+  ADMIN
+}
+
+enum PermitType {
+  HOT_WORK
+  CONFINED_SPACE
+  WORKING_AT_HEIGHT
+  ELECTRICAL_LOTO
+}
+
+enum PermitStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  ACTIVE
+  SUSPENDED
+  CLOSED
+  CLOSED_VERIFIED
+  REJECTED
+  EXPIRED
+  CANCELLED
+}
+
+enum ApprovalRole {
+  AREA_OWNER
+  SAFETY_OFFICER
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AuditAction {
+  CREATED
+  UPDATED
+  SUBMITTED
+  APPROVED
+  REJECTED
+  ACTIVATED
+  SUSPENDED
+  RESUMED
+  CLOSED
+  VERIFIED
+  EXPIRED
+  CANCELLED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         UserRole
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  requestedPermits Permit[]         @relation("PermitRequester")
+  approvals        PermitApproval[]
+  auditLogs        PermitAuditLog[]
+  ownedAreas       Area[]           @relation("AreaOwner")
+}
+
+model Plant {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  areas   Area[]
+  permits Permit[]
+}
+
+model Area {
+  id        String   @id @default(cuid())
+  name      String
+  code      String
+  plantId   String
+  ownerId   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  plant     Plant       @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  owner     User?       @relation("AreaOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  equipment Equipment[]
+  permits   Permit[]
+
+  @@unique([plantId, code])
+}
+
+model Equipment {
+  id        String   @id @default(cuid())
+  name      String
+  code      String
+  areaId    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  area    Area     @relation(fields: [areaId], references: [id], onDelete: Cascade)
+  permits Permit[]
+
+  @@unique([areaId, code])
+}
+
+model Permit {
+  id           String       @id @default(cuid())
+  permitNumber String       @unique
+  type         PermitType
+  status       PermitStatus @default(DRAFT)
+
+  requesterId String
+  plantId     String
+  areaId      String
+  equipmentId String?
+
+  contractorTeam  String
+  workDescription String
+
+  plannedStart DateTime
+  plannedEnd   DateTime
+
+  hazards     Json
+  ppe         Json
+  precautions Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  requester User       @relation("PermitRequester", fields: [requesterId], references: [id])
+  plant     Plant      @relation(fields: [plantId], references: [id])
+  area      Area       @relation(fields: [areaId], references: [id])
+  equipment Equipment? @relation(fields: [equipmentId], references: [id])
+
+  approvals PermitApproval[]
+  auditLogs PermitAuditLog[]
+
+  hotWorkDetails         HotWorkDetails?
+  confinedSpaceDetails   ConfinedSpaceDetails?
+  workingAtHeightDetails WorkingAtHeightDetails?
+  electricalLotoDetails  ElectricalLotoDetails?
+
+  @@index([status])
+  @@index([type])
+  @@index([requesterId])
+  @@index([plantId, areaId])
+  @@index([plannedStart, plannedEnd])
+}
+
+model HotWorkDetails {
+  id       String @id @default(cuid())
+  permitId String @unique
+
+  hotWorkType               String
+  fireWatchAssigned         Boolean
+  fireExtinguisherType      String
+  combustiblesClearedRadius Float?
+  lelPercent                Float?
+  oxygenPercent             Float?
+  gasTestTime               DateTime?
+
+  permit Permit @relation(fields: [permitId], references: [id], onDelete: Cascade)
+}
+
+model ConfinedSpaceDetails {
+  id       String @id @default(cuid())
+  permitId String @unique
+
+  spaceId           String
+  entryPoint        String
+  oxygenPercent     Float?
+  lelPercent        Float?
+  h2sPpm            Float?
+  coPpm             Float?
+  standbyAttendant  String
+  rescuePlan        String
+  ventilationMethod String
+
+  permit Permit @relation(fields: [permitId], references: [id], onDelete: Cascade)
+}
+
+model WorkingAtHeightDetails {
+  id       String @id @default(cuid())
+  permitId String @unique
+
+  workHeightMeters     Float
+  accessMethod         String
+  fallProtectionSystem String
+  anchorPointVerified  Boolean
+  scaffoldInspected    Boolean
+  weatherConditions    String?
+
+  permit Permit @relation(fields: [permitId], references: [id], onDelete: Cascade)
+}
+
+model ElectricalLotoDetails {
+  id       String @id @default(cuid())
+  permitId String @unique
+
+  isolationPoint     String
+  isolationMethod    String
+  lotoApplied        Boolean
+  zeroEnergyVerified Boolean
+  authorizedPerson   String
+  voltageLevel       String?
+  verificationMethod String?
+
+  permit Permit @relation(fields: [permitId], references: [id], onDelete: Cascade)
+}
+
+model PermitApproval {
+  id         String         @id @default(cuid())
+  permitId   String
+  approverId String
+  role       ApprovalRole
+  status     ApprovalStatus @default(PENDING)
+
+  comment   String?
+  actedAt   DateTime?
+  createdAt DateTime  @default(now())
+
+  permit   Permit @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  approver User   @relation(fields: [approverId], references: [id])
+
+  @@unique([permitId, role])
+  @@index([approverId])
+}
+
+model PermitAuditLog {
+  id       String @id @default(cuid())
+  permitId String
+  actorId  String
+
+  action     AuditAction
+  fromStatus PermitStatus?
+  toStatus   PermitStatus?
+
+  oldValue Json?
+  newValue Json?
+  comment  String?
+
+  createdAt DateTime @default(now())
+
+  permit Permit @relation(fields: [permitId], references: [id], onDelete: Cascade)
+  actor  User   @relation(fields: [actorId], references: [id])
+
+  @@index([permitId, createdAt])
+  @@index([actorId])
 }
