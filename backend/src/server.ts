@@ -4,6 +4,7 @@ import cors from "cors";
 import { prisma } from "./lib/prisma";
 import authRoutes from "./routes/auth.routes";
 import { authenticate, AuthRequest } from "./middleware/auth";
+import permitRoutes from "./routes/permit.routes";
 
 const app = express();
 
@@ -63,6 +64,8 @@ app.get("/api/auth/me", authenticate, async (req: AuthRequest, res) => {
     });
   }
 });
+
+app.use("/api/permits", permitRoutes);
 
 // Start server
 app.listen(PORT, () => {
