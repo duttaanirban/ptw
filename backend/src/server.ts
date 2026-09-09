@@ -5,6 +5,7 @@ import { prisma } from "./lib/prisma";
 import authRoutes from "./routes/auth.routes";
 import { authenticate, AuthRequest } from "./middleware/auth";
 import permitRoutes from "./routes/permit.routes";
+import { startPermitExpiryJob } from "./jobs/permit-expiry.job";
 
 const app = express();
 
@@ -71,3 +72,5 @@ app.use("/api/permits", permitRoutes);
 app.listen(PORT, () => {
   console.log(`🚀 PTW backend running on http://localhost:${PORT}`);
 });
+
+startPermitExpiryJob();
