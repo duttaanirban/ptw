@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authenticate, authorize } from "../middleware/auth";
-import { createPermitController } from "../controllers/permit.controller";
+import { createPermitController, updatePermitController } from "../controllers/permit.controller";
 import {
   submitPermitController,
   approvePermitController,
@@ -21,6 +21,14 @@ router.post(
   authorize("REQUESTER", "ADMIN"),
   createPermitController
 );
+
+router.patch(
+  "/:id",
+  authenticate,
+  authorize("REQUESTER", "ADMIN"),
+  updatePermitController
+);
+
 router.post(
   "/:id/submit",
   authenticate,

@@ -300,6 +300,13 @@ export async function rejectPermit(
     );
   }
 
+  // Rejection reason is mandatory.
+  if (!comment?.trim()) {
+    throw workflowError(
+      "A rejection reason is required"
+    );
+  }
+
   const permit = await prisma.permit.findUnique({
     where: { id: permitId },
     include: {
@@ -354,12 +361,20 @@ export async function rejectPermit(
     );
   }
 
+  if (approval.status !== ApprovalStatus.PENDING) {
+    throw workflowError(
+      `This approval has already been ${approval.status.toLowerCase()}`
+    );
+  }
+
+  const rejectionReason = comment.trim();
+
   return prisma.$transaction(async (tx) => {
     await tx.permitApproval.update({
       where: { id: approval.id },
       data: {
         status: ApprovalStatus.REJECTED,
-        comment,
+        comment: rejectionReason,
         actedAt: new Date(),
       },
     });
@@ -378,12 +393,13 @@ export async function rejectPermit(
         action: AuditAction.REJECTED,
         fromStatus: PermitStatus.PENDING_APPROVAL,
         toStatus: PermitStatus.REJECTED,
-        comment,
+        comment: rejectionReason,
       },
     });
 
     return {
       status: PermitStatus.REJECTED,
+      rejectionReason,
     };
   });
 }

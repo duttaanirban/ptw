@@ -1,4 +1,5 @@
 import {
+  AuditAction,
   PermitStatus,
   PermitType,
   Prisma,
@@ -639,4 +640,307 @@ export async function createPermit(
   });
 
   return permit;
+}
+
+export interface UpdatePermitInput {
+  contractorTeam?: string;
+  workDescription?: string;
+  plantId?: string;
+  areaId?: string;
+  equipmentId?: string | null;
+  plannedStart?: string;
+  plannedEnd?: string;
+  hazards?: string[];
+  ppe?: string[];
+  precautions?: string[];
+}
+
+export async function updatePermit(
+  userId: string,
+  permitId: string,
+  input: UpdatePermitInput
+) {
+  const existingPermit = await prisma.permit.findUnique({
+    where: { id: permitId },
+  });
+
+  if (!existingPermit) {
+    throw new Error("Permit not found");
+  }
+
+  // Only the requester can edit their own permit.
+  if (existingPermit.requesterId !== userId) {
+    throw new Error("Only the requester can edit their own permit");
+  }
+
+  // Do not allow edits after the permit has reached a terminal state.
+  const terminalStatuses: PermitStatus[] = [
+    PermitStatus.CLOSED_VERIFIED,
+    PermitStatus.EXPIRED,
+    PermitStatus.CANCELLED,
+    PermitStatus.REJECTED,
+  ];
+
+  if (terminalStatuses.includes(existingPermit.status)) {
+    throw new Error(
+      `Permit cannot be edited in ${existingPermit.status} status`
+    );
+  }
+
+  // Once work is ACTIVE, changing permit details is unsafe.
+  if (existingPermit.status === PermitStatus.ACTIVE) {
+    throw new Error("ACTIVE permits cannot be edited");
+  }
+
+  const data: Prisma.PermitUpdateInput = {};
+
+  if (input.contractorTeam !== undefined) {
+    if (!input.contractorTeam.trim()) {
+      throw new Error("Contractor/team cannot be empty");
+    }
+
+    data.contractorTeam = input.contractorTeam.trim();
+  }
+
+  if (input.workDescription !== undefined) {
+    if (!input.workDescription.trim()) {
+      throw new Error("Work description cannot be empty");
+    }
+
+    data.workDescription = input.workDescription.trim();
+  }
+
+  if (input.plantId !== undefined) {
+    const plant = await prisma.plant.findUnique({
+      where: { id: input.plantId },
+    });
+
+    if (!plant) {
+      throw new Error("Plant not found");
+    }
+
+    data.plant = {
+      connect: { id: input.plantId },
+    };
+  }
+
+  if (input.areaId !== undefined) {
+    const area = await prisma.area.findUnique({
+      where: { id: input.areaId },
+    });
+
+    if (!area) {
+      throw new Error("Area not found");
+    }
+
+    const targetPlantId = input.plantId ?? existingPermit.plantId;
+
+    if (area.plantId !== targetPlantId) {
+      throw new Error("Area does not belong to the selected plant");
+    }
+
+    data.area = {
+      connect: { id: input.areaId },
+    };
+  }
+
+  if (input.equipmentId !== undefined) {
+    if (input.equipmentId === null) {
+      data.equipment = {
+        disconnect: true,
+      };
+    } else {
+      const equipment = await prisma.equipment.findUnique({
+        where: { id: input.equipmentId },
+      });
+
+      if (!equipment) {
+        throw new Error("Equipment not found");
+      }
+
+      const targetAreaId = input.areaId ?? existingPermit.areaId;
+
+      if (equipment.areaId !== targetAreaId) {
+        throw new Error(
+          "Equipment does not belong to the selected area"
+        );
+      }
+
+      data.equipment = {
+        connect: { id: input.equipmentId },
+      };
+    }
+  }
+
+  let plannedStart = existingPermit.plannedStart;
+  let plannedEnd = existingPermit.plannedEnd;
+
+  if (input.plannedStart !== undefined) {
+    const parsedStart = new Date(input.plannedStart);
+
+    if (Number.isNaN(parsedStart.getTime())) {
+      throw new Error("Invalid planned start date");
+    }
+
+    plannedStart = parsedStart;
+    data.plannedStart = parsedStart;
+  }
+
+  if (input.plannedEnd !== undefined) {
+    const parsedEnd = new Date(input.plannedEnd);
+
+    if (Number.isNaN(parsedEnd.getTime())) {
+      throw new Error("Invalid planned end date");
+    }
+
+    plannedEnd = parsedEnd;
+    data.plannedEnd = parsedEnd;
+  }
+
+  if (plannedEnd <= plannedStart) {
+    throw new Error(
+      "Planned end must be later than planned start"
+    );
+  }
+
+  if (input.hazards !== undefined) {
+    if (!Array.isArray(input.hazards)) {
+      throw new Error("Hazards must be an array");
+    }
+
+    data.hazards = input.hazards;
+  }
+
+  if (input.ppe !== undefined) {
+    if (!Array.isArray(input.ppe)) {
+      throw new Error("PPE must be an array");
+    }
+
+    data.ppe = input.ppe;
+  }
+
+  if (input.precautions !== undefined) {
+    if (!Array.isArray(input.precautions)) {
+      throw new Error("Precautions must be an array");
+    }
+
+    data.precautions = input.precautions;
+  }
+
+  const newValue: Record<string, unknown> = {};
+  const oldValue: Record<string, unknown> = {};
+
+  const compareField = (
+    field: string,
+    oldVal: unknown,
+    newVal: unknown
+  ) => {
+    if (newVal === undefined) {
+      return;
+    }
+
+    const normalize = (value: unknown) => {
+      if (value instanceof Date) {
+        return value.toISOString();
+      }
+
+      return value;
+    };
+
+    const oldNormalized = normalize(oldVal);
+    const newNormalized = normalize(newVal);
+
+    if (JSON.stringify(oldNormalized) !== JSON.stringify(newNormalized)) {
+      oldValue[field] = oldNormalized;
+      newValue[field] = newNormalized;
+    }
+  };
+
+  compareField(
+    "contractorTeam",
+    existingPermit.contractorTeam,
+    input.contractorTeam?.trim()
+  );
+
+  compareField(
+    "workDescription",
+    existingPermit.workDescription,
+    input.workDescription?.trim()
+  );
+
+  compareField(
+    "plantId",
+    existingPermit.plantId,
+    input.plantId
+  );
+
+  compareField(
+    "areaId",
+    existingPermit.areaId,
+    input.areaId
+  );
+
+  compareField(
+    "equipmentId",
+    existingPermit.equipmentId,
+    input.equipmentId
+  );
+
+  compareField(
+    "plannedStart",
+    existingPermit.plannedStart,
+    input.plannedStart !== undefined
+      ? new Date(input.plannedStart)
+      : undefined
+  );
+
+  compareField(
+    "plannedEnd",
+    existingPermit.plannedEnd,
+    input.plannedEnd !== undefined
+      ? new Date(input.plannedEnd)
+      : undefined
+  );
+
+  compareField(
+    "hazards",
+    existingPermit.hazards,
+    input.hazards
+  );
+
+  compareField(
+    "ppe",
+    existingPermit.ppe,
+    input.ppe
+  );
+
+  compareField(
+    "precautions",
+    existingPermit.precautions,
+    input.precautions
+  );
+
+  if (Object.keys(newValue).length === 0) {
+    throw new Error("No changes detected");
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updatedPermit = await tx.permit.update({
+      where: { id: permitId },
+      data,
+    });
+
+    await tx.permitAuditLog.create({
+      data: {
+        permitId,
+        actorId: userId,
+        action: AuditAction.UPDATED,
+        oldValue: oldValue as Prisma.InputJsonValue,
+        newValue: newValue as Prisma.InputJsonValue,
+        comment: "Permit fields updated after submission",
+      },
+    });
+
+    return updatedPermit;
+  });
 }
