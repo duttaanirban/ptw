@@ -6,10 +6,10 @@ export default defineConfig({
 
   migrations: {
     path: "prisma/migrations",
+    seed: "npx tsx prisma/seed.ts",
   },
 
   datasource: {
     url: env("DATABASE_URL"),
-    shadowDatabaseUrl: env("SHADOW_DATABASE_URL"),
   },
 });
