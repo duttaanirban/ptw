@@ -66,14 +66,14 @@ router.post(
 router.post(
   "/:id/close",
   authenticate,
-  authorize("REQUESTER", "AREA_OWNER", "SAFETY_OFFICER", "ADMIN"),
+  authorize("REQUESTER", "ADMIN"),
   closePermitController
 );
 
 router.post(
   "/:id/verify-close",
   authenticate,
-  authorize("AREA_OWNER", "SAFETY_OFFICER", "ADMIN"),
+  authorize("SAFETY_OFFICER", "ADMIN"),
   verifyClosedPermitController
 );
 

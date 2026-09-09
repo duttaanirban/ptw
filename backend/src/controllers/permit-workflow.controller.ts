@@ -192,22 +192,21 @@ export async function closePermitController(
   res: Response
 ) {
   try {
+    const { completionNotes } = req.body;
+
     const permit = await closePermit(
+      req.user!.userId,
       getPermitId(req),
-      {
-        userId: req.user!.userId,
-        role: req.user!.role as any,
-      },
-      req.body?.comment
+      completionNotes
     );
 
     return res.json({
-      message: "Permit closed",
+      message: "Permit marked as completed",
       permit,
     });
-  } catch (error) {
+  } catch (error: any) {
     return res.status(400).json({
-      message: error instanceof Error ? error.message : "Unable to close permit",
+      message: error.message,
     });
   }
 }
@@ -219,10 +218,7 @@ export async function verifyClosedPermitController(
   try {
     const permit = await verifyClosedPermit(
       getPermitId(req),
-      {
-        userId: req.user!.userId,
-        role: req.user!.role as any,
-      },
+      req.user!.userId,
       req.body?.comment
     );
 

@@ -578,94 +578,105 @@ export async function resumePermit(
 }
 
 export async function closePermit(
+  userId: string,
   permitId: string,
-  actor: WorkflowUser,
-  comment?: string
+  completionNotes: string
 ) {
-  if (
-    actor.role !== UserRole.REQUESTER &&
-    actor.role !== UserRole.AREA_OWNER &&
-    actor.role !== UserRole.SAFETY_OFFICER &&
-    actor.role !== UserRole.ADMIN
-  ) {
-    throw workflowError(
-      "You are not authorized to close permits"
-    );
-  }
-
   const permit = await prisma.permit.findUnique({
     where: { id: permitId },
   });
 
   if (!permit) {
-    throw workflowError("Permit not found");
+    throw new Error("Permit not found");
   }
 
-  if (
-    permit.status !== PermitStatus.ACTIVE &&
-    permit.status !== PermitStatus.SUSPENDED
-  ) {
-    throw workflowError(
-      `Cannot close a permit in ${permit.status} status`
-    );
+  // Only the requester can mark their own work as completed.
+  if (permit.requesterId !== userId) {
+    throw new Error("Only the requester can close their own permit");
   }
 
-  return prisma.$transaction(async (tx) => {
-    const fromStatus = permit.status;
+  if (permit.status !== PermitStatus.ACTIVE) {
+    throw new Error("Only ACTIVE permits can be closed");
+  }
 
-    const updatedPermit = await tx.permit.update({
+  if (!completionNotes || !completionNotes.trim()) {
+    throw new Error("Completion notes are required");
+  }
+
+  const now = new Date();
+
+  const updatedPermit = await prisma.$transaction(async (tx) => {
+    const updated = await tx.permit.update({
       where: { id: permitId },
       data: {
         status: PermitStatus.CLOSED,
+        completionNotes: completionNotes.trim(),
+        completedAt: now,
       },
     });
 
     await tx.permitAuditLog.create({
       data: {
         permitId,
-        actorId: actor.userId,
+        actorId: userId,
         action: AuditAction.CLOSED,
-        fromStatus,
+        fromStatus: PermitStatus.ACTIVE,
         toStatus: PermitStatus.CLOSED,
-        comment,
+        newValue: {
+          completionNotes: completionNotes.trim(),
+          completedAt: now.toISOString(),
+        },
+        comment: "Requester marked the permit work as completed",
       },
     });
 
-    return updatedPermit;
+    return updated;
   });
+
+  return updatedPermit;
 }
 
 export async function verifyClosedPermit(
+  userId: string,
   permitId: string,
-  actor: WorkflowUser,
   comment?: string
 ) {
-  if (
-    actor.role !== UserRole.AREA_OWNER &&
-    actor.role !== UserRole.SAFETY_OFFICER &&
-    actor.role !== UserRole.ADMIN
-  ) {
-    throw workflowError(
-      "Only an area owner, safety officer, or admin can verify closure"
-    );
-  }
-
   const permit = await prisma.permit.findUnique({
     where: { id: permitId },
+    include: {
+      area: true,
+    },
   });
 
   if (!permit) {
-    throw workflowError("Permit not found");
+    throw new Error("Permit not found");
   }
 
-  if (permit.status !== PermitStatus.CLOSED) {
-    throw workflowError(
-      `Cannot verify closure for a permit in ${permit.status} status`
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+  });
+
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  if (
+    user.role !== "SAFETY_OFFICER" &&
+    user.role !== "ADMIN"
+  ) {
+    throw new Error(
+      "Only the Safety Officer or Admin can verify permit closure"
     );
   }
 
+  if (permit.status !== PermitStatus.CLOSED) {
+    throw new Error("Only CLOSED permits can be verified");
+  }
+
+  const now = new Date();
+
   return prisma.$transaction(async (tx) => {
-    const updatedPermit = await tx.permit.update({
+    const updated = await tx.permit.update({
       where: { id: permitId },
       data: {
         status: PermitStatus.CLOSED_VERIFIED,
@@ -675,15 +686,20 @@ export async function verifyClosedPermit(
     await tx.permitAuditLog.create({
       data: {
         permitId,
-        actorId: actor.userId,
+        actorId: userId,
         action: AuditAction.VERIFIED,
         fromStatus: PermitStatus.CLOSED,
         toStatus: PermitStatus.CLOSED_VERIFIED,
-        comment,
+        comment:
+          comment?.trim() ||
+          "Safety Officer verified permit closure",
+        newValue: {
+          verifiedAt: now.toISOString(),
+        },
       },
     });
 
-    return updatedPermit;
+    return updated;
   });
 }
 
