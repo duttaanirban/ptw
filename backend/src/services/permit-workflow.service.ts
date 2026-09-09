@@ -420,6 +420,20 @@ export async function activatePermit(
     );
   }
 
+  const now = new Date();
+
+    if (now < permit.plannedStart) {
+    throw workflowError(
+        "Permit cannot be activated before its planned start time"
+    );
+    }
+
+    if (now >= permit.plannedEnd) {
+    throw workflowError(
+        "Permit has passed its validity window and cannot be activated"
+    );
+    }
+
   const allApproved = permit.approvals.every(
     (approval) => approval.status === ApprovalStatus.APPROVED
   );

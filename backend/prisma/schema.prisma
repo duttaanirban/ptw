@@ -138,6 +138,9 @@ model Permit {
   ppe         Json
   precautions Json
 
+  completionNotes String?
+  completedAt     DateTime?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -180,15 +183,17 @@ model ConfinedSpaceDetails {
   id       String @id @default(cuid())
   permitId String @unique
 
-  spaceId           String
-  entryPoint        String
-  oxygenPercent     Float?
-  lelPercent        Float?
-  h2sPpm            Float?
-  coPpm             Float?
-  standbyAttendant  String
-  rescuePlan        String
-  ventilationMethod String
+  spaceId             String
+  entryPoint          String
+  oxygenPercent       Float?
+  lelPercent          Float?
+  h2sPpm              Float?
+  coPpm               Float?
+  atmosphericTestTime DateTime?
+  standbyAttendant    String
+  rescuePlan          String
+  ventilationMethod   String
+  entryExitLog        Json
 
   permit Permit @relation(fields: [permitId], references: [id], onDelete: Cascade)
 }
@@ -197,12 +202,12 @@ model WorkingAtHeightDetails {
   id       String @id @default(cuid())
   permitId String @unique
 
-  workHeightMeters     Float
-  accessMethod         String
-  fallProtectionSystem String
-  anchorPointVerified  Boolean
-  scaffoldInspected    Boolean
-  weatherConditions    String?
+  workHeightMeters    Float
+  accessMethod        String
+  fallArrestEquipment String
+  anchorPointVerified Boolean
+  barricadingBelow    Boolean
+  weatherConditions   String?
 
   permit Permit @relation(fields: [permitId], references: [id], onDelete: Cascade)
 }
@@ -211,12 +216,16 @@ model ElectricalLotoDetails {
   id       String @id @default(cuid())
   permitId String @unique
 
-  isolationPoint     String
-  isolationMethod    String
-  lotoApplied        Boolean
-  zeroEnergyVerified Boolean
-  authorizedPerson   String
-  voltageLevel       String?
+  equipmentTag    String
+  voltageLevel    String
+  isolationPoints Json
+  lockNumbers     Json
+  tagNumbers      Json
+  earthingApplied Boolean
+  testedDeadBy    String
+
+  isolationMethod    String?
+  lotoApplied        Boolean?
   verificationMethod String?
 
   permit Permit @relation(fields: [permitId], references: [id], onDelete: Cascade)
