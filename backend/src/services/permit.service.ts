@@ -193,13 +193,20 @@ export async function createPermit(
                     input.hotWorkDetails.fireWatchAssigned,
                   fireExtinguisherType:
                     input.hotWorkDetails.fireExtinguisherType,
-                  combustiblesClearedRadius:
-                    input.hotWorkDetails.combustiblesClearedRadius,
-                  lelPercent: input.hotWorkDetails.lelPercent,
-                  oxygenPercent: input.hotWorkDetails.oxygenPercent,
-                  gasTestTime: input.hotWorkDetails.gasTestTime
-                    ? new Date(input.hotWorkDetails.gasTestTime)
-                    : undefined,
+                  ...(input.hotWorkDetails.combustiblesClearedRadius !==
+                  undefined && {
+                    combustiblesClearedRadius:
+                      input.hotWorkDetails.combustiblesClearedRadius,
+                  }),
+                  ...(input.hotWorkDetails.lelPercent !== undefined && {
+                    lelPercent: input.hotWorkDetails.lelPercent,
+                  }),
+                  ...(input.hotWorkDetails.oxygenPercent !== undefined && {
+                    oxygenPercent: input.hotWorkDetails.oxygenPercent,
+                  }),
+                  ...(input.hotWorkDetails.gasTestTime !== undefined && {
+                    gasTestTime: new Date(input.hotWorkDetails.gasTestTime),
+                  }),
                 },
               }
             : undefined,
@@ -211,11 +218,19 @@ export async function createPermit(
                 create: {
                   spaceId: input.confinedSpaceDetails.spaceId,
                   entryPoint: input.confinedSpaceDetails.entryPoint,
-                  oxygenPercent:
-                    input.confinedSpaceDetails.oxygenPercent,
-                  lelPercent: input.confinedSpaceDetails.lelPercent,
-                  h2sPpm: input.confinedSpaceDetails.h2sPpm,
-                  coPpm: input.confinedSpaceDetails.coPpm,
+                  ...(input.confinedSpaceDetails.oxygenPercent !==
+                    undefined && {
+                      oxygenPercent: input.confinedSpaceDetails.oxygenPercent,
+                    }),
+                  ...(input.confinedSpaceDetails.lelPercent !== undefined && {
+                    lelPercent: input.confinedSpaceDetails.lelPercent,
+                  }),
+                  ...(input.confinedSpaceDetails.h2sPpm !== undefined && {
+                    h2sPpm: input.confinedSpaceDetails.h2sPpm,
+                  }),
+                  ...(input.confinedSpaceDetails.coPpm !== undefined && {
+                    coPpm: input.confinedSpaceDetails.coPpm,
+                  }),
                   standbyAttendant:
                     input.confinedSpaceDetails.standbyAttendant,
                   rescuePlan: input.confinedSpaceDetails.rescuePlan,
@@ -240,8 +255,11 @@ export async function createPermit(
                     input.workingAtHeightDetails.anchorPointVerified,
                   scaffoldInspected:
                     input.workingAtHeightDetails.scaffoldInspected,
-                  weatherConditions:
-                    input.workingAtHeightDetails.weatherConditions,
+                  ...(input.workingAtHeightDetails.weatherConditions !==
+                    undefined && {
+                      weatherConditions:
+                        input.workingAtHeightDetails.weatherConditions,
+                    }),
                 },
               }
             : undefined,
@@ -261,10 +279,14 @@ export async function createPermit(
                     input.electricalLotoDetails.zeroEnergyVerified,
                   authorizedPerson:
                     input.electricalLotoDetails.authorizedPerson,
-                  voltageLevel:
-                    input.electricalLotoDetails.voltageLevel,
-                  verificationMethod:
-                    input.electricalLotoDetails.verificationMethod,
+                  ...(input.electricalLotoDetails.voltageLevel !== undefined && {
+                    voltageLevel: input.electricalLotoDetails.voltageLevel,
+                  }),
+                  ...(input.electricalLotoDetails.verificationMethod !==
+                    undefined && {
+                      verificationMethod:
+                        input.electricalLotoDetails.verificationMethod,
+                    }),
                 },
               }
             : undefined,

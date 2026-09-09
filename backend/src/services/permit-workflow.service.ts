@@ -200,7 +200,7 @@ export async function approvePermit(
   let approvalRole: ApprovalRole;
 
   if (actor.role === UserRole.AREA_OWNER) {
-    if (permit.area.ownerId !== actor.userId && actor.role !== UserRole.ADMIN) {
+    if (permit.area.ownerId !== actor.userId) {
       throw workflowError(
         "You are not the owner of this permit's area"
       );
@@ -385,5 +385,356 @@ export async function rejectPermit(
     return {
       status: PermitStatus.REJECTED,
     };
+  });
+}
+
+export async function activatePermit(
+  permitId: string,
+  actor: WorkflowUser,
+  comment?: string
+) {
+  if (
+    actor.role !== UserRole.AREA_OWNER &&
+    actor.role !== UserRole.SAFETY_OFFICER &&
+    actor.role !== UserRole.ADMIN
+  ) {
+    throw workflowError(
+      "Only an area owner, safety officer, or admin can activate a permit"
+    );
+  }
+
+  const permit = await prisma.permit.findUnique({
+    where: { id: permitId },
+    include: {
+      approvals: true,
+    },
+  });
+
+  if (!permit) {
+    throw workflowError("Permit not found");
+  }
+
+  if (permit.status !== PermitStatus.APPROVED) {
+    throw workflowError(
+      `Cannot activate a permit in ${permit.status} status`
+    );
+  }
+
+  const allApproved = permit.approvals.every(
+    (approval) => approval.status === ApprovalStatus.APPROVED
+  );
+
+  if (!allApproved) {
+    throw workflowError(
+      "All required approvals must be completed before activation"
+    );
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updatedPermit = await tx.permit.update({
+      where: { id: permitId },
+      data: {
+        status: PermitStatus.ACTIVE,
+      },
+    });
+
+    await tx.permitAuditLog.create({
+      data: {
+        permitId,
+        actorId: actor.userId,
+        action: AuditAction.ACTIVATED,
+        fromStatus: PermitStatus.APPROVED,
+        toStatus: PermitStatus.ACTIVE,
+        comment,
+      },
+    });
+
+    return updatedPermit;
+  });
+}
+
+export async function suspendPermit(
+  permitId: string,
+  actor: WorkflowUser,
+  comment?: string
+) {
+  if (
+    actor.role !== UserRole.AREA_OWNER &&
+    actor.role !== UserRole.SAFETY_OFFICER &&
+    actor.role !== UserRole.ADMIN
+  ) {
+    throw workflowError(
+      "Only an area owner, safety officer, or admin can suspend a permit"
+    );
+  }
+
+  if (!comment?.trim()) {
+    throw workflowError(
+      "A reason is required when suspending a permit"
+    );
+  }
+
+  const permit = await prisma.permit.findUnique({
+    where: { id: permitId },
+  });
+
+  if (!permit) {
+    throw workflowError("Permit not found");
+  }
+
+  if (permit.status !== PermitStatus.ACTIVE) {
+    throw workflowError(
+      `Cannot suspend a permit in ${permit.status} status`
+    );
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updatedPermit = await tx.permit.update({
+      where: { id: permitId },
+      data: {
+        status: PermitStatus.SUSPENDED,
+      },
+    });
+
+    await tx.permitAuditLog.create({
+      data: {
+        permitId,
+        actorId: actor.userId,
+        action: AuditAction.SUSPENDED,
+        fromStatus: PermitStatus.ACTIVE,
+        toStatus: PermitStatus.SUSPENDED,
+        comment,
+      },
+    });
+
+    return updatedPermit;
+  });
+}
+
+export async function resumePermit(
+  permitId: string,
+  actor: WorkflowUser,
+  comment?: string
+) {
+  if (
+    actor.role !== UserRole.AREA_OWNER &&
+    actor.role !== UserRole.SAFETY_OFFICER &&
+    actor.role !== UserRole.ADMIN
+  ) {
+    throw workflowError(
+      "Only an area owner, safety officer, or admin can resume a permit"
+    );
+  }
+
+  const permit = await prisma.permit.findUnique({
+    where: { id: permitId },
+  });
+
+  if (!permit) {
+    throw workflowError("Permit not found");
+  }
+
+  if (permit.status !== PermitStatus.SUSPENDED) {
+    throw workflowError(
+      `Cannot resume a permit in ${permit.status} status`
+    );
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updatedPermit = await tx.permit.update({
+      where: { id: permitId },
+      data: {
+        status: PermitStatus.ACTIVE,
+      },
+    });
+
+    await tx.permitAuditLog.create({
+      data: {
+        permitId,
+        actorId: actor.userId,
+        action: AuditAction.RESUMED,
+        fromStatus: PermitStatus.SUSPENDED,
+        toStatus: PermitStatus.ACTIVE,
+        comment,
+      },
+    });
+
+    return updatedPermit;
+  });
+}
+
+export async function closePermit(
+  permitId: string,
+  actor: WorkflowUser,
+  comment?: string
+) {
+  if (
+    actor.role !== UserRole.REQUESTER &&
+    actor.role !== UserRole.AREA_OWNER &&
+    actor.role !== UserRole.SAFETY_OFFICER &&
+    actor.role !== UserRole.ADMIN
+  ) {
+    throw workflowError(
+      "You are not authorized to close permits"
+    );
+  }
+
+  const permit = await prisma.permit.findUnique({
+    where: { id: permitId },
+  });
+
+  if (!permit) {
+    throw workflowError("Permit not found");
+  }
+
+  if (
+    permit.status !== PermitStatus.ACTIVE &&
+    permit.status !== PermitStatus.SUSPENDED
+  ) {
+    throw workflowError(
+      `Cannot close a permit in ${permit.status} status`
+    );
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const fromStatus = permit.status;
+
+    const updatedPermit = await tx.permit.update({
+      where: { id: permitId },
+      data: {
+        status: PermitStatus.CLOSED,
+      },
+    });
+
+    await tx.permitAuditLog.create({
+      data: {
+        permitId,
+        actorId: actor.userId,
+        action: AuditAction.CLOSED,
+        fromStatus,
+        toStatus: PermitStatus.CLOSED,
+        comment,
+      },
+    });
+
+    return updatedPermit;
+  });
+}
+
+export async function verifyClosedPermit(
+  permitId: string,
+  actor: WorkflowUser,
+  comment?: string
+) {
+  if (
+    actor.role !== UserRole.AREA_OWNER &&
+    actor.role !== UserRole.SAFETY_OFFICER &&
+    actor.role !== UserRole.ADMIN
+  ) {
+    throw workflowError(
+      "Only an area owner, safety officer, or admin can verify closure"
+    );
+  }
+
+  const permit = await prisma.permit.findUnique({
+    where: { id: permitId },
+  });
+
+  if (!permit) {
+    throw workflowError("Permit not found");
+  }
+
+  if (permit.status !== PermitStatus.CLOSED) {
+    throw workflowError(
+      `Cannot verify closure for a permit in ${permit.status} status`
+    );
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const updatedPermit = await tx.permit.update({
+      where: { id: permitId },
+      data: {
+        status: PermitStatus.CLOSED_VERIFIED,
+      },
+    });
+
+    await tx.permitAuditLog.create({
+      data: {
+        permitId,
+        actorId: actor.userId,
+        action: AuditAction.VERIFIED,
+        fromStatus: PermitStatus.CLOSED,
+        toStatus: PermitStatus.CLOSED_VERIFIED,
+        comment,
+      },
+    });
+
+    return updatedPermit;
+  });
+}
+
+export async function cancelPermit(
+  permitId: string,
+  actor: WorkflowUser,
+  comment?: string
+) {
+  if (
+    actor.role !== UserRole.REQUESTER &&
+    actor.role !== UserRole.ADMIN
+  ) {
+    throw workflowError(
+      "Only the requester or admin can cancel a permit"
+    );
+  }
+
+  const permit = await prisma.permit.findUnique({
+    where: { id: permitId },
+  });
+
+  if (!permit) {
+    throw workflowError("Permit not found");
+  }
+
+  if (
+    permit.status !== PermitStatus.DRAFT &&
+    permit.status !== PermitStatus.PENDING_APPROVAL &&
+    permit.status !== PermitStatus.APPROVED
+  ) {
+    throw workflowError(
+      `Cannot cancel a permit in ${permit.status} status`
+    );
+  }
+
+  if (
+    actor.role !== UserRole.ADMIN &&
+    permit.requesterId !== actor.userId
+  ) {
+    throw workflowError(
+      "Only the permit requester can cancel this permit"
+    );
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const fromStatus = permit.status;
+
+    const updatedPermit = await tx.permit.update({
+      where: { id: permitId },
+      data: {
+        status: PermitStatus.CANCELLED,
+      },
+    });
+
+    await tx.permitAuditLog.create({
+      data: {
+        permitId,
+        actorId: actor.userId,
+        action: AuditAction.CANCELLED,
+        fromStatus,
+        toStatus: PermitStatus.CANCELLED,
+        comment,
+      },
+    });
+
+    return updatedPermit;
   });
 }

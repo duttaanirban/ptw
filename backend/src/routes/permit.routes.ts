@@ -5,6 +5,12 @@ import {
   submitPermitController,
   approvePermitController,
   rejectPermitController,
+  activatePermitController,
+  suspendPermitController,
+  resumePermitController,
+  closePermitController,
+  verifyClosedPermitController,
+  cancelPermitController,
 } from "../controllers/permit-workflow.controller";
 
 const router = Router();
@@ -34,6 +40,48 @@ router.post(
   authenticate,
   authorize("AREA_OWNER", "SAFETY_OFFICER", "ADMIN"),
   rejectPermitController
+);
+
+router.post(
+  "/:id/activate",
+  authenticate,
+  authorize("AREA_OWNER", "SAFETY_OFFICER", "ADMIN"),
+  activatePermitController
+);
+
+router.post(
+  "/:id/suspend",
+  authenticate,
+  authorize("AREA_OWNER", "SAFETY_OFFICER", "ADMIN"),
+  suspendPermitController
+);
+
+router.post(
+  "/:id/resume",
+  authenticate,
+  authorize("AREA_OWNER", "SAFETY_OFFICER", "ADMIN"),
+  resumePermitController
+);
+
+router.post(
+  "/:id/close",
+  authenticate,
+  authorize("REQUESTER", "AREA_OWNER", "SAFETY_OFFICER", "ADMIN"),
+  closePermitController
+);
+
+router.post(
+  "/:id/verify-close",
+  authenticate,
+  authorize("AREA_OWNER", "SAFETY_OFFICER", "ADMIN"),
+  verifyClosedPermitController
+);
+
+router.post(
+  "/:id/cancel",
+  authenticate,
+  authorize("REQUESTER", "ADMIN"),
+  cancelPermitController
 );
 
 export default router;
