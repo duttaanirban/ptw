@@ -3,6 +3,8 @@ import { AuthRequest } from "../middleware/auth";
 import {
   createPermit,
   updatePermit,
+  getPermits,
+  getPermitById,
 } from "../services/permit.service";
 
 export async function createPermitController(
@@ -58,6 +60,52 @@ export async function updatePermitController(
     console.error(error);
 
     return res.status(400).json({
+      message: error.message,
+    });
+  }
+}
+
+export async function getPermitsController(
+  _req: AuthRequest,
+  res: Response
+) {
+  try {
+    const permits = await getPermits();
+
+    return res.json({
+      permits,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Failed to fetch permits",
+    });
+  }
+}
+
+export async function getPermitByIdController(
+  req: AuthRequest,
+  res: Response
+) {
+  try {
+    const permitId = req.params.id;
+
+    if (typeof permitId !== "string") {
+      return res.status(400).json({
+        message: "Permit ID is required",
+      });
+    }
+
+    const permit = await getPermitById(permitId);
+
+    return res.json({
+      permit,
+    });
+  } catch (error: any) {
+    console.error(error);
+
+    return res.status(404).json({
       message: error.message,
     });
   }

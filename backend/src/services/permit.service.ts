@@ -944,3 +944,103 @@ export async function updatePermit(
     return updatedPermit;
   });
 }
+
+export async function getPermits() {
+  return prisma.permit.findMany({
+    orderBy: {
+      createdAt: "desc",
+    },
+    include: {
+      requester: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      plant: true,
+      area: {
+        include: {
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
+      equipment: true,
+    },
+  });
+}
+
+export async function getPermitById(permitId: string) {
+  const permit = await prisma.permit.findUnique({
+    where: {
+      id: permitId,
+    },
+    include: {
+      requester: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+      plant: true,
+      area: {
+        include: {
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+        },
+      },
+      equipment: true,
+      approvals: {
+        include: {
+          approver: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+      auditLogs: {
+        include: {
+          actor: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+      hotWorkDetails: true,
+      confinedSpaceDetails: true,
+      workingAtHeightDetails: true,
+      electricalLotoDetails: true,
+    },
+  });
+
+  if (!permit) {
+    throw new Error("Permit not found");
+  }
+
+  return permit;
+}

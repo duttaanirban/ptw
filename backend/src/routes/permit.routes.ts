@@ -1,6 +1,11 @@
 import { Router } from "express";
 import { authenticate, authorize } from "../middleware/auth";
-import { createPermitController, updatePermitController } from "../controllers/permit.controller";
+import {
+  createPermitController,
+  updatePermitController,
+  getPermitByIdController,
+  getPermitsController,
+} from "../controllers/permit.controller";
 import {
   submitPermitController,
   approvePermitController,
@@ -14,6 +19,18 @@ import {
 } from "../controllers/permit-workflow.controller";
 
 const router = Router();
+
+router.get(
+  "/",
+  authenticate,
+  getPermitsController
+);
+
+router.get(
+  "/:id",
+  authenticate,
+  getPermitByIdController
+);
 
 router.post(
   "/",
