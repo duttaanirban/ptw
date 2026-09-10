@@ -81,6 +81,18 @@ type PermitForm = {
   verificationMethod: string;
 };
 
+type PermitConflict = {
+  permitId: string;
+  permitNumber: string;
+  type: PermitType;
+  status: string;
+  plannedStart: string;
+  plannedEnd: string;
+  workDescription: string;
+  isHighRisk: boolean;
+  reason: string;
+};
+
 const permitTypes: {
   value: PermitType;
   label: string;
@@ -174,6 +186,10 @@ export default function NewPermitPage() {
     verificationMethod: "",
   });
 
+  const [conflicts, setConflicts] = useState<PermitConflict[]>([]);
+  const [checkingConflicts, setCheckingConflicts] = useState(false);
+  const [conflictCheckError, setConflictCheckError] = useState<string | null>(null);
+
   const selectedAreas = useMemo(() => {
     return areas.filter(
       (area) => area.plantId === form.plantId
@@ -262,6 +278,70 @@ export default function NewPermitPage() {
 
   void loadOptions();
 }, [router]);
+
+  useEffect(() => {
+  if (step !== 4) {
+    return;
+  }
+
+  const token = localStorage.getItem("ptw_token") ?? undefined;
+
+  async function checkConflicts() {
+    if (
+      !token ||
+      !form.plantId ||
+      !form.areaId ||
+      !form.plannedStart ||
+      !form.plannedEnd
+    ) {
+      return;
+    }
+
+    try {
+      setCheckingConflicts(true);
+      setConflictCheckError(null);
+
+      const params = new URLSearchParams({
+        type,
+        plantId: form.plantId,
+        areaId: form.areaId,
+        plannedStart: new Date(form.plannedStart).toISOString(),
+        plannedEnd: new Date(form.plannedEnd).toISOString(),
+      });
+
+      if (form.equipmentId) {
+        params.set("equipmentId", form.equipmentId);
+      }
+
+      const response = await apiFetch<{
+        conflicts: PermitConflict[];
+      }>(`/api/permits/conflicts?${params.toString()}`, {
+        token,
+      });
+
+      setConflicts(response.conflicts);
+    } catch (error) {
+      setConflicts([]);
+      setConflictCheckError(
+        error instanceof Error
+          ? error.message
+          : "Unable to check permit conflicts"
+      );
+    } finally {
+      setCheckingConflicts(false);
+    }
+  }
+
+  void checkConflicts();
+}, [
+  step,
+  type,
+  form.plantId,
+  form.areaId,
+  form.equipmentId,
+  form.plannedStart,
+  form.plannedEnd,
+]);
 
   function updateField(
     field: keyof PermitForm,
@@ -886,6 +966,9 @@ export default function NewPermitPage() {
             <ReviewStep
               type={type}
               form={form}
+              conflicts={conflicts}
+              checkingConflicts={checkingConflicts}
+              conflictCheckError={conflictCheckError}
             />
           )}
 
@@ -1492,9 +1575,15 @@ function SafetyFields({
 function ReviewStep({
   type,
   form,
+  conflicts,
+  checkingConflicts,
+  conflictCheckError,
 }: {
   type: PermitType;
   form: PermitForm;
+  conflicts: PermitConflict[];
+  checkingConflicts: boolean;
+  conflictCheckError: string | null;
 }) {
   return (
     <section>
@@ -1562,6 +1651,89 @@ function ReviewStep({
             form.precautions
           )}
         />
+      </div>
+
+      <div className="mt-6 rounded-xl border border-slate-800 bg-slate-950 p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-slate-200">
+              Permit conflict check
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              Checking for overlapping work in the selected area and time window.
+            </p>
+          </div>
+          {checkingConflicts && (
+            <span className="shrink-0 text-xs text-slate-500">Checking…</span>
+          )}
+        </div>
+
+        {conflictCheckError && (
+          <div className="mt-4 rounded-xl border border-amber-500/20 bg-amber-500/5 p-3">
+            <p className="text-sm font-medium text-amber-400">
+              Conflict check unavailable
+            </p>
+            <p className="mt-1 text-sm text-slate-400">
+              {conflictCheckError}
+            </p>
+          </div>
+        )}
+
+        {!checkingConflicts && !conflictCheckError && conflicts.length === 0 && (
+          <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+            <p className="text-sm font-medium text-emerald-400">
+              No overlapping permits found
+            </p>
+            <p className="mt-1 text-sm text-slate-400">
+              This permit does not overlap another active workflow permit in the same location and time window.
+            </p>
+          </div>
+        )}
+
+        {conflicts.length > 0 && (
+          <div className="mt-4 space-y-3">
+            {conflicts.map((conflict) => (
+              <div
+                key={conflict.permitId}
+                className={`rounded-xl border p-4 ${
+                  conflict.isHighRisk
+                    ? "border-red-500/30 bg-red-500/5"
+                    : "border-amber-500/20 bg-amber-500/5"
+                }`}
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      conflict.isHighRisk
+                        ? "bg-red-500/10 text-red-400"
+                        : "bg-amber-500/10 text-amber-400"
+                    }`}
+                  >
+                    {conflict.isHighRisk ? "High-risk conflict" : "Overlap warning"}
+                  </span>
+                  <span className="text-sm font-semibold text-white">
+                    {conflict.permitNumber}
+                  </span>
+                  <span className="text-xs text-slate-500">
+                    {formatType(conflict.type)} · {conflict.status}
+                  </span>
+                </div>
+
+                <p className="mt-3 text-sm font-medium text-slate-200">
+                  {conflict.reason}
+                </p>
+
+                <p className="mt-1 text-sm text-slate-400">
+                  {conflict.workDescription || "No work description"}
+                </p>
+
+                <p className="mt-2 text-xs text-slate-500">
+                  {new Date(conflict.plannedStart).toLocaleString()} → {new Date(conflict.plannedEnd).toLocaleString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">

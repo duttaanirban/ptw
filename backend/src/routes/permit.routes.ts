@@ -6,6 +6,7 @@ import {
   getPermitByIdController,
   getPermitsController,
   getPermitOptionsController,
+  getPermitConflictsController,
 } from "../controllers/permit.controller";
 import {
   submitPermitController,
@@ -32,6 +33,8 @@ router.get(
   authenticate,
   getPermitOptionsController
 );
+
+router.get("/conflicts", authenticate, getPermitConflictsController);
 
 router.get(
   "/:id",

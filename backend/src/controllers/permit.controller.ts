@@ -6,6 +6,7 @@ import {
   getPermits,
   getPermitById,
   getPermitOptions,
+  findPermitConflicts,
 } from "../services/permit.service";
 
 export async function createPermitController(
@@ -127,6 +128,63 @@ export async function getPermitOptionsController(
 
     return res.status(500).json({
       message: "Failed to load permit options",
+    });
+  }
+}
+
+export async function getPermitConflictsController(
+  req: AuthRequest,
+  res: Response
+) {
+  try {
+    const {
+      type,
+      plantId,
+      areaId,
+      equipmentId,
+      plannedStart,
+      plannedEnd,
+      excludePermitId,
+    } = req.query;
+
+    if (
+      typeof type !== "string" ||
+      typeof plantId !== "string" ||
+      typeof areaId !== "string" ||
+      typeof plannedStart !== "string" ||
+      typeof plannedEnd !== "string"
+    ) {
+      return res.status(400).json({
+        message:
+          "type, plantId, areaId, plannedStart and plannedEnd are required",
+      });
+    }
+
+    const conflicts = await findPermitConflicts({
+      type: type as any,
+      plantId,
+      areaId,
+      equipmentId:
+        typeof equipmentId === "string" ? equipmentId : null,
+      plannedStart,
+      plannedEnd,
+      excludePermitId:
+        typeof excludePermitId === "string"
+          ? excludePermitId
+          : undefined,
+    });
+
+    return res.json({
+      conflicts,
+    });
+  } catch (error) {
+    console.error("Permit conflict check error:", error);
+
+    return res.status(400).json({
+      message:
+        error instanceof Error
+          ? error.message
+          : "Unable to check permit conflicts",
     });
   }
 }
