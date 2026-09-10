@@ -9,7 +9,7 @@ import { startPermitExpiryJob } from "./jobs/permit-expiry.job";
 
 const app = express();
 
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.PORT) || 5000;
 
 // Middleware
 app.use(cors());
@@ -69,7 +69,7 @@ app.get("/api/auth/me", authenticate, async (req: AuthRequest, res) => {
 app.use("/api/permits", permitRoutes);
 
 // Start server
-app.listen(PORT, () => {
+app.listen(PORT, "0.0.0.0", () => {
   console.log(`🚀 PTW backend running on http://localhost:${PORT}`);
 });
 
