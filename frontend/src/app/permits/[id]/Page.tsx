@@ -200,6 +200,42 @@ export default function PermitDetailPage() {
 
   
   
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const validity = useMemo(() => {
+    if (!permit) return null;
+
+    const start = new Date(permit.plannedStart).getTime();
+    const end = new Date(permit.plannedEnd).getTime();
+    const remainingMs = end - now;
+    const untilStartMs = start - now;
+
+    return {
+      remainingMs,
+      untilStartMs,
+      isExpired: remainingMs <= 0,
+      isExpiringSoon: remainingMs > 0 && remainingMs <= 2 * 60 * 60 * 1000,
+      isNotStarted: untilStartMs > 0,
+    };
+  }, [permit, now]);
+
+  const formatCountdown = useCallback((milliseconds: number) => {
+    const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    if (days > 0) return `${days}d ${hours}h ${minutes}m`;
+    if (hours > 0) return `${hours}h ${minutes}m ${seconds}s`;
+    return `${minutes}m ${seconds}s`;
+  }, []);
+
   const loadPermit = useCallback(async () => {
     const token = localStorage.getItem("ptw_token");
 
@@ -1195,7 +1231,55 @@ export default function PermitDetailPage() {
                     permit.plannedEnd
                   )}
                 </p>
-              </div>
+
+
+              {validity && (
+                <div
+                  className={`mt-4 rounded-xl border p-4 ${
+                    validity.isExpired
+                      ? "border-red-500/20 bg-red-500/5"
+                      : validity.isExpiringSoon
+                        ? "border-amber-500/20 bg-amber-500/5"
+                        : validity.isNotStarted
+                          ? "border-blue-500/20 bg-blue-500/5"
+                          : "border-emerald-500/20 bg-emerald-500/5"
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-xs uppercase tracking-wider text-slate-500">
+                      {validity.isExpired
+                        ? "Permit expired"
+                        : validity.isNotStarted
+                          ? "Starts in"
+                          : "Time remaining"}
+                    </p>
+                    <span
+                      className={`text-lg font-bold tabular-nums ${
+                        validity.isExpired
+                          ? "text-red-400"
+                          : validity.isExpiringSoon
+                            ? "text-amber-400"
+                            : validity.isNotStarted
+                              ? "text-blue-400"
+                              : "text-emerald-400"
+                      }`}
+                    >
+                      {validity.isExpired
+                        ? "Expired"
+                        : validity.isNotStarted
+                          ? formatCountdown(validity.untilStartMs)
+                          : formatCountdown(validity.remainingMs)}
+                    </span>
+                  </div>
+                  {permit.status === "ACTIVE" &&
+                    validity.isExpiringSoon &&
+                    !validity.isExpired && (
+                      <p className="mt-2 text-xs text-amber-300">
+                        This permit expires within the next 2 hours.
+                      </p>
+                    )}
+                </div>
+              )}              </div>
             </Section>
           </aside>
         </div>
