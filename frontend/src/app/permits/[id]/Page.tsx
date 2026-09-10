@@ -306,32 +306,48 @@ export default function PermitDetailPage() {
   }
 
   async function handleReject() {
-    if (!comment.trim()) {
-      setError("A rejection reason is required.");
-      return;
-    }
-
-    await performAction("/reject", {
-      comment: comment.trim(),
-    });
+  if (!comment.trim()) {
+    setError("A rejection reason is required.");
+    return;
   }
+
+  if (
+    !confirmAction(
+      "Reject this permit?\n\nThis will move the permit to REJECTED."
+    )
+  ) {
+    return;
+  }
+
+  await performAction("/reject", {
+    comment: comment.trim(),
+  });
+}
 
   async function handleActivate() {
     await performAction("/activate");
   }
 
   async function handleSuspend() {
-    if (!comment.trim()) {
-      setError(
-        "A reason is required when suspending a permit."
-      );
-      return;
-    }
-
-    await performAction("/suspend", {
-      comment: comment.trim(),
-    });
+  if (!comment.trim()) {
+    setError(
+      "A reason is required when suspending a permit."
+    );
+    return;
   }
+
+  if (
+    !confirmAction(
+      "Suspend this active permit?\n\nWork will be stopped until the permit is resumed."
+    )
+  ) {
+    return;
+  }
+
+  await performAction("/suspend", {
+    comment: comment.trim(),
+  });
+}
 
   async function handleResume() {
     await performAction("/resume", {
@@ -340,27 +356,51 @@ export default function PermitDetailPage() {
   }
 
   async function handleClose() {
-    if (!completionNotes.trim()) {
-      setError("Completion notes are required.");
-      return;
-    }
-
-    await performAction("/close", {
-      completionNotes: completionNotes.trim(),
-    });
+  if (!completionNotes.trim()) {
+    setError("Completion notes are required.");
+    return;
   }
+
+  if (
+    !confirmAction(
+      "Mark this permit as completed?\n\nMake sure the work area has been restored safely."
+    )
+  ) {
+    return;
+  }
+
+  await performAction("/close", {
+    completionNotes: completionNotes.trim(),
+  });
+}
 
   async function handleVerifyClose() {
-    await performAction("/verify-close", {
-      comment: comment.trim() || undefined,
-    });
+  if (
+    !confirmAction(
+      "Verify closure for this permit?\n\nThis will move the permit to CLOSED_VERIFIED."
+    )
+  ) {
+    return;
   }
 
+  await performAction("/verify-close", {
+    comment: comment.trim() || undefined,
+  });
+}
+
   async function handleCancel() {
-    await performAction("/cancel", {
-      comment: comment.trim() || undefined,
-    });
+  if (
+    !confirmAction(
+      "Cancel this permit?\n\nThis action cannot be undone."
+    )
+  ) {
+    return;
   }
+
+  await performAction("/cancel", {
+    comment: comment.trim() || undefined,
+  });
+}
 
   function startEditing() {
     if (!permit) {
@@ -988,6 +1028,9 @@ export default function PermitDetailPage() {
 
               {canApprove && (
                 <>
+                  <p className="mb-2 text-xs font-medium text-slate-500">
+                    Approval / rejection comment
+                  </p>
                   <textarea
                     value={comment}
                     onChange={(event) =>
@@ -995,7 +1038,7 @@ export default function PermitDetailPage() {
                         event.target.value
                       )
                     }
-                    placeholder="Approval comment (optional)"
+                    placeholder="Approval comment (optional). For rejection, a reason is required."
                     rows={3}
                     className="mb-3 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
                   />
@@ -1730,4 +1773,8 @@ function statusClasses(status: PermitStatus) {
     default:
       return "bg-slate-500/10 text-slate-300 border-slate-500/20";
   }
+}
+
+function confirmAction(message: string) {
+  return window.confirm(message);
 }
