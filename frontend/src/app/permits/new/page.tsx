@@ -279,14 +279,27 @@ export default function NewPermitPage() {
   void loadOptions();
 }, [router]);
 
-  useEffect(() => {
-  if (step !== 4) {
-    return;
+
+  function updateField(
+    field: keyof PermitForm,
+    value: string | boolean
+  ) {
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
   }
 
-  const token = localStorage.getItem("ptw_token") ?? undefined;
+  function splitLines(value: string) {
+    return value
+      .split("\n")
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
 
-  async function checkConflicts() {
+  async function checkPermitConflicts(): Promise<boolean> {
+    const token = localStorage.getItem("ptw_token") ?? undefined;
+
     if (
       !token ||
       !form.plantId ||
@@ -294,7 +307,9 @@ export default function NewPermitPage() {
       !form.plannedStart ||
       !form.plannedEnd
     ) {
-      return;
+      setConflicts([]);
+      setConflictCheckError(null);
+      return true;
     }
 
     try {
@@ -320,6 +335,7 @@ export default function NewPermitPage() {
       });
 
       setConflicts(response.conflicts);
+      return true;
     } catch (error) {
       setConflicts([]);
       setConflictCheckError(
@@ -327,40 +343,13 @@ export default function NewPermitPage() {
           ? error.message
           : "Unable to check permit conflicts"
       );
+      return false;
     } finally {
       setCheckingConflicts(false);
     }
   }
 
-  void checkConflicts();
-}, [
-  step,
-  type,
-  form.plantId,
-  form.areaId,
-  form.equipmentId,
-  form.plannedStart,
-  form.plannedEnd,
-]);
-
-  function updateField(
-    field: keyof PermitForm,
-    value: string | boolean
-  ) {
-    setForm((current) => ({
-      ...current,
-      [field]: value,
-    }));
-  }
-
-  function splitLines(value: string) {
-    return value
-      .split("\n")
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-
-  function nextStep() {
+  async function nextStep() {
   if (step === 1) {
     if (!type) {
       alert("Please select a permit type.");
@@ -533,6 +522,13 @@ export default function NewPermitPage() {
         alert("Tested dead by is required.");
         return;
       }
+    }
+
+    const conflictCheckSucceeded = await checkPermitConflicts();
+
+    if (!conflictCheckSucceeded) {
+      alert("Conflict check could not be completed. Please try again.");
+      return;
     }
 
     setStep(4);
