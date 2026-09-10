@@ -77,6 +77,117 @@ function generatePermitNumber(): string {
   return `PTW-${timestamp}`;
 }
 
+export type PermitConflict = {
+  permitId: string;
+  permitNumber: string;
+  type: PermitType;
+  status: PermitStatus;
+  plantId: string;
+  areaId: string;
+  equipmentId: string | null;
+  plannedStart: Date;
+  plannedEnd: Date;
+  workDescription: string;
+  isHighRisk: boolean;
+  reason: string;
+};
+
+/**
+ * Find permits that overlap the requested time window in the same location.
+ *
+ * This is intentionally exposed as a reusable service function so the API can
+ * warn a requester before creation without making conflict detection a UI-only
+ * rule. We do not block creation here: a safety reviewer may still decide that
+ * overlapping work is acceptable after assessing the conditions.
+ *
+ * A Hot Work + Confined Space overlap in the same location is marked as a
+ * high-risk conflict because the assignment explicitly calls out this pairing.
+ */
+export async function findPermitConflicts(input: {
+  type: PermitType;
+  plantId: string;
+  areaId: string;
+  equipmentId?: string | null;
+  plannedStart: string | Date;
+  plannedEnd: string | Date;
+  excludePermitId?: string;
+}) {
+  const plannedStart =
+    input.plannedStart instanceof Date
+      ? input.plannedStart
+      : new Date(input.plannedStart);
+  const plannedEnd =
+    input.plannedEnd instanceof Date
+      ? input.plannedEnd
+      : new Date(input.plannedEnd);
+
+  if (Number.isNaN(plannedStart.getTime()) || Number.isNaN(plannedEnd.getTime())) {
+    throw new Error("Invalid planned start or end date");
+  }
+
+  if (plannedEnd <= plannedStart) {
+    throw new Error("Planned end must be after planned start");
+  }
+
+  const activeStatuses: PermitStatus[] = [
+    PermitStatus.PENDING_APPROVAL,
+    PermitStatus.APPROVED,
+    PermitStatus.ACTIVE,
+    PermitStatus.SUSPENDED,
+  ];
+
+  const conflicts = await prisma.permit.findMany({
+    where: {
+      plantId: input.plantId,
+      areaId: input.areaId,
+      status: { in: activeStatuses },
+      ...(input.excludePermitId
+        ? { id: { not: input.excludePermitId } }
+        : {}),
+      AND: [
+        { plannedStart: { lt: plannedEnd } },
+        { plannedEnd: { gt: plannedStart } },
+        {
+          OR: [
+            { equipmentId: input.equipmentId ?? null },
+            { equipmentId: null },
+            ...(input.equipmentId ? [{ equipmentId: input.equipmentId }] : []),
+          ],
+        },
+      ],
+    },
+    select: {
+      id: true,
+      permitNumber: true,
+      type: true,
+      status: true,
+      plantId: true,
+      areaId: true,
+      equipmentId: true,
+      plannedStart: true,
+      plannedEnd: true,
+      workDescription: true,
+    },
+    orderBy: { plannedStart: "asc" },
+  });
+
+  return conflicts.map((conflict) => {
+    const isHighRisk =
+      (input.type === PermitType.HOT_WORK &&
+        conflict.type === PermitType.CONFINED_SPACE) ||
+      (input.type === PermitType.CONFINED_SPACE &&
+        conflict.type === PermitType.HOT_WORK);
+
+    return {
+      ...conflict,
+      isHighRisk,
+      reason: isHighRisk
+        ? "Hot Work overlaps with Confined Space work in the same location and time window."
+        : "Another permit overlaps this permit in the same location and time window.",
+    };
+  });
+}
+
 export async function createPermit(
   requesterId: string,
   input: CreatePermitInput
