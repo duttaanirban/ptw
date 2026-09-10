@@ -958,19 +958,42 @@ export async function getPermits() {
           email: true,
         },
       },
-      plant: true,
-      area: {
-        include: {
-          owner: {
-            select: {
-              id: true,
-              name: true,
-              email: true,
-            },
-          },
+
+      plant: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
         },
       },
-      equipment: true,
+
+      area: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          ownerId: true,
+        },
+      },
+
+      equipment: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+        },
+      },
+
+      approvals: {
+        select: {
+          id: true,
+          approverId: true,
+          role: true,
+          status: true,
+          comment: true,
+          actedAt: true,
+        },
+      },
     },
   });
 }
@@ -1043,4 +1066,26 @@ export async function getPermitById(permitId: string) {
   }
 
   return permit;
+}
+
+export async function getPermitOptions() {
+  return prisma.plant.findMany({
+    orderBy: {
+      name: "asc",
+    },
+    include: {
+      areas: {
+        orderBy: {
+          name: "asc",
+        },
+        include: {
+          equipment: {
+            orderBy: {
+              name: "asc",
+            },
+          },
+        },
+      },
+    },
+  });
 }

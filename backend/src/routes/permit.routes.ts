@@ -5,6 +5,7 @@ import {
   updatePermitController,
   getPermitByIdController,
   getPermitsController,
+  getPermitOptionsController,
 } from "../controllers/permit.controller";
 import {
   submitPermitController,
@@ -24,6 +25,12 @@ router.get(
   "/",
   authenticate,
   getPermitsController
+);
+
+router.get(
+  "/options",
+  authenticate,
+  getPermitOptionsController
 );
 
 router.get(

@@ -5,6 +5,7 @@ import {
   updatePermit,
   getPermits,
   getPermitById,
+  getPermitOptions,
 } from "../services/permit.service";
 
 export async function createPermitController(
@@ -107,6 +108,25 @@ export async function getPermitByIdController(
 
     return res.status(404).json({
       message: error.message,
+    });
+  }
+}
+
+export async function getPermitOptionsController(
+  _req: AuthRequest,
+  res: Response
+) {
+  try {
+    const options = await getPermitOptions();
+
+    return res.json({
+      options,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: "Failed to load permit options",
     });
   }
 }

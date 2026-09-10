@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "../app/lib/api";
 
@@ -16,6 +16,15 @@ type PermitStatus =
   | "EXPIRED"
   | "CANCELLED";
 
+type Approval = {
+  id: string;
+  approverId: string;
+  role: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  comment?: string | null;
+  actedAt?: string | null;
+};
+
 type Permit = {
   id: string;
   permitNumber: string;
@@ -25,30 +34,44 @@ type Permit = {
   workDescription: string;
   plannedStart: string;
   plannedEnd: string;
+
   requester: {
     id: string;
     name: string;
     email: string;
   };
+
   plant: {
     id: string;
     name: string;
     code: string;
   };
+
   area: {
     id: string;
     name: string;
     code: string;
+    ownerId?: string | null;
   };
+
   equipment?: {
     id: string;
     name: string;
     code: string;
   } | null;
+
+  approvals: Approval[];
 };
 
 type PermitResponse = {
   permits: Permit[];
+};
+
+type CurrentUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
 };
 
 function formatType(type: string) {
@@ -61,6 +84,10 @@ function formatType(type: string) {
     .join(" ");
 }
 
+function formatStatus(status: PermitStatus) {
+  return status.replaceAll("_", " ");
+}
+
 function formatDate(date: string) {
   return new Intl.DateTimeFormat("en-IN", {
     day: "2-digit",
@@ -70,23 +97,41 @@ function formatDate(date: string) {
   }).format(new Date(date));
 }
 
+function isExpiringSoon(permit: Permit) {
+  if (permit.status !== "ACTIVE") {
+    return false;
+  }
+
+  const end = new Date(permit.plannedEnd).getTime();
+  const diff = end - Date.now();
+
+  return diff > 0 && diff <= 2 * 60 * 60 * 1000;
+}
+
 function statusClasses(status: PermitStatus) {
   switch (status) {
     case "ACTIVE":
       return "bg-emerald-500/10 text-emerald-400 border-emerald-500/20";
+
     case "PENDING_APPROVAL":
       return "bg-amber-500/10 text-amber-400 border-amber-500/20";
+
     case "APPROVED":
       return "bg-blue-500/10 text-blue-400 border-blue-500/20";
+
     case "SUSPENDED":
       return "bg-orange-500/10 text-orange-400 border-orange-500/20";
+
     case "REJECTED":
       return "bg-red-500/10 text-red-400 border-red-500/20";
+
     case "EXPIRED":
       return "bg-slate-500/10 text-slate-400 border-slate-500/20";
+
     case "CLOSED":
     case "CLOSED_VERIFIED":
       return "bg-violet-500/10 text-violet-400 border-violet-500/20";
+
     default:
       return "bg-slate-500/10 text-slate-300 border-slate-500/20";
   }
@@ -96,36 +141,51 @@ export default function DashboardPage() {
   const router = useRouter();
 
   const [permits, setPermits] = useState<Permit[]>([]);
+  const [currentUser, setCurrentUser] =
+    useState<CurrentUser | null>(null);
+
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState("");
 
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [typeFilter, setTypeFilter] = useState("ALL");
+  const [areaFilter, setAreaFilter] = useState("ALL");
   const [search, setSearch] = useState("");
-  const [now, setNow] = useState(() => Date.now());
 
-  useEffect(() => {
-    const interval = window.setInterval(() => {
-      setNow(Date.now());
-    }, 60 * 1000);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
-    return () => window.clearInterval(interval);
-  }, []);
+  const [pendingOnly, setPendingOnly] = useState(false);
 
-  useEffect(() => {
-    const token = localStorage.getItem("ptw_token");
+  const loadPermits = useCallback(
+    async (isRefresh = false) => {
+      const token = localStorage.getItem("ptw_token");
 
-    if (!token) {
-      router.replace("/login");
-      return;
-    }
+      if (!token) {
+        router.replace("/login");
+        return;
+      }
 
-    async function loadPermits() {
+      if (isRefresh) {
+        setRefreshing(true);
+      } else {
+        setLoading(true);
+      }
+
+      setError("");
+
       try {
+        const storedUser = localStorage.getItem("ptw_user");
+
+        if (storedUser) {
+          setCurrentUser(JSON.parse(storedUser));
+        }
+
         const data = await apiFetch<PermitResponse>(
           "/api/permits",
           {
-            token: token ?? undefined,
+            token,
           }
         );
 
@@ -143,15 +203,36 @@ export default function DashboardPage() {
           message.toLowerCase().includes("unauthorized")
         ) {
           localStorage.removeItem("ptw_token");
+          localStorage.removeItem("ptw_user");
           router.replace("/login");
         }
       } finally {
         setLoading(false);
+        setRefreshing(false);
       }
+    },
+    [router]
+  );
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void loadPermits();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [loadPermits]);
+
+  const areas = useMemo(() => {
+    const map = new Map<string, string>();
+
+    for (const permit of permits) {
+      map.set(permit.area.id, permit.area.name);
     }
 
-    loadPermits();
-  }, [router]);
+    return [...map.entries()].sort((a, b) =>
+      a[1].localeCompare(b[1])
+    );
+  }, [permits]);
 
   const stats = useMemo(() => {
     const active = permits.filter(
@@ -166,19 +247,20 @@ export default function DashboardPage() {
       (permit) => permit.status === "SUSPENDED"
     ).length;
 
-    const expiringSoon = permits.filter((permit) => {
-      if (
-        permit.status !== "ACTIVE" &&
-        permit.status !== "APPROVED"
-      ) {
-        return false;
-      }
+    const expiringSoon = permits.filter(
+      isExpiringSoon
+    ).length;
 
-      const end = new Date(permit.plannedEnd).getTime();
-      const diff = end - now;
-
-      return diff > 0 && diff <= 2 * 60 * 60 * 1000;
-    }).length;
+    const myApprovals =
+      currentUser === null
+        ? 0
+        : permits.filter((permit) =>
+            permit.approvals.some(
+              (approval) =>
+                approval.approverId === currentUser.id &&
+                approval.status === "PENDING"
+            )
+          ).length;
 
     return {
       total: permits.length,
@@ -186,8 +268,9 @@ export default function DashboardPage() {
       pending,
       suspended,
       expiringSoon,
+      myApprovals,
     };
-  }, [permits, now]);
+  }, [permits, currentUser]);
 
   const filteredPermits = useMemo(() => {
     return permits.filter((permit) => {
@@ -199,7 +282,11 @@ export default function DashboardPage() {
         typeFilter === "ALL" ||
         permit.type === typeFilter;
 
-      const query = search.toLowerCase();
+      const matchesArea =
+        areaFilter === "ALL" ||
+        permit.area.id === areaFilter;
+
+      const query = search.trim().toLowerCase();
 
       const matchesSearch =
         !query ||
@@ -209,20 +296,79 @@ export default function DashboardPage() {
         permit.workDescription
           .toLowerCase()
           .includes(query) ||
-        permit.area.name.toLowerCase().includes(query);
+        permit.area.name
+          .toLowerCase()
+          .includes(query) ||
+        permit.requester.name
+          .toLowerCase()
+          .includes(query);
+
+      const permitStart = new Date(
+        permit.plannedStart
+      );
+
+      const permitEnd = new Date(
+        permit.plannedEnd
+      );
+
+      const selectedStart = startDate
+        ? new Date(`${startDate}T00:00:00`)
+        : null;
+
+      const selectedEnd = endDate
+        ? new Date(`${endDate}T23:59:59.999`)
+        : null;
+
+      const matchesStartDate =
+        !selectedStart ||
+        permitEnd >= selectedStart;
+
+      const matchesEndDate =
+        !selectedEnd ||
+        permitStart <= selectedEnd;
+
+      const hasMyPendingApproval =
+        currentUser !== null &&
+        permit.approvals.some(
+          (approval) =>
+            approval.approverId === currentUser.id &&
+            approval.status === "PENDING"
+        );
+
+      const matchesPending =
+        !pendingOnly || hasMyPendingApproval;
 
       return (
         matchesStatus &&
         matchesType &&
-        matchesSearch
+        matchesArea &&
+        matchesSearch &&
+        matchesStartDate &&
+        matchesEndDate &&
+        matchesPending
       );
     });
   }, [
     permits,
     statusFilter,
     typeFilter,
+    areaFilter,
     search,
+    startDate,
+    endDate,
+    pendingOnly,
+    currentUser,
   ]);
+
+  function clearFilters() {
+    setStatusFilter("ALL");
+    setTypeFilter("ALL");
+    setAreaFilter("ALL");
+    setSearch("");
+    setStartDate("");
+    setEndDate("");
+    setPendingOnly(false);
+  }
 
   function logout() {
     localStorage.removeItem("ptw_token");
@@ -233,10 +379,11 @@ export default function DashboardPage() {
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <div className="flex min-h-screen">
-        <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-slate-800 bg-slate-900">
-          <div className="p-6 border-b border-slate-800">
+        {/* Sidebar */}
+        <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-800 bg-slate-900 lg:flex">
+          <div className="border-b border-slate-800 p-6">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-emerald-500 flex items-center justify-center text-slate-950 font-black text-xs">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-xs font-black text-slate-950">
                 PTW
               </div>
 
@@ -244,6 +391,7 @@ export default function DashboardPage() {
                 <p className="font-semibold">
                   Permit Control
                 </p>
+
                 <p className="text-xs text-slate-500">
                   CMMS Safety Module
                 </p>
@@ -251,26 +399,51 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <nav className="p-4 space-y-2">
-            <button className="w-full rounded-xl bg-slate-800 px-4 py-3 text-left text-sm font-medium text-white">
+          <nav className="space-y-2 p-4">
+            <button
+              className="w-full rounded-xl bg-slate-800 px-4 py-3 text-left text-sm font-medium text-white"
+            >
               Dashboard
             </button>
 
             <button
-              onClick={() =>
-                router.push("/permits/new")
-              }
+              onClick={() => router.push("/permits/new")}
               className="w-full rounded-xl px-4 py-3 text-left text-sm text-slate-400 hover:bg-slate-800 hover:text-white"
             >
               Create Permit
             </button>
 
-            <button className="w-full rounded-xl px-4 py-3 text-left text-sm text-slate-400 hover:bg-slate-800 hover:text-white">
-              My Approvals
+            <button
+              onClick={() => setPendingOnly(true)}
+              className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm text-slate-400 hover:bg-slate-800 hover:text-white"
+            >
+              <span>My Approvals</span>
+
+              {stats.myApprovals > 0 && (
+                <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-slate-950">
+                  {stats.myApprovals}
+                </span>
+              )}
             </button>
           </nav>
 
           <div className="mt-auto p-4">
+            <div className="mb-3 rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+              <p className="text-xs text-slate-500">
+                Signed in as
+              </p>
+
+              <p className="mt-1 truncate text-sm font-medium">
+                {currentUser?.name || "User"}
+              </p>
+
+              <p className="mt-0.5 text-xs text-slate-500">
+                {currentUser?.role
+                  ?.replaceAll("_", " ")
+                  .toLowerCase()}
+              </p>
+            </div>
+
             <button
               onClick={logout}
               className="w-full rounded-xl border border-slate-800 px-4 py-3 text-sm text-slate-400 hover:bg-slate-800 hover:text-white"
@@ -280,9 +453,10 @@ export default function DashboardPage() {
           </div>
         </aside>
 
-        <section className="flex-1 min-w-0">
+        {/* Main */}
+        <section className="min-w-0 flex-1">
           <header className="border-b border-slate-800 bg-slate-950/90">
-            <div className="flex items-center justify-between px-5 py-4 lg:px-8">
+            <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between lg:px-8">
               <div>
                 <p className="text-sm text-slate-500">
                   Operations / Permits
@@ -291,20 +465,35 @@ export default function DashboardPage() {
                 <h1 className="mt-1 text-2xl font-bold">
                   Permit Dashboard
                 </h1>
+
+                <p className="mt-1 text-sm text-slate-500">
+                  Monitor work authorization and safety controls.
+                </p>
               </div>
 
-              <button
-                onClick={() =>
-                  router.push("/permits/new")
-                }
-                className="rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
-              >
-                + New Permit
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => void loadPermits(true)}
+                  disabled={refreshing}
+                  className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+                >
+                  {refreshing ? "Refreshing..." : "Refresh"}
+                </button>
+
+                <button
+                  onClick={() =>
+                    router.push("/permits/new")
+                  }
+                  className="rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
+                >
+                  + New Permit
+                </button>
+              </div>
             </div>
           </header>
 
           <div className="p-5 lg:p-8">
+            {/* Stats */}
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
               <StatCard
                 label="Total Permits"
@@ -322,8 +511,8 @@ export default function DashboardPage() {
               />
 
               <StatCard
-                label="Suspended"
-                value={stats.suspended}
+                label="My Approvals"
+                value={stats.myApprovals}
               />
 
               <StatCard
@@ -333,27 +522,57 @@ export default function DashboardPage() {
               />
             </div>
 
+            {/* Active / expiring section */}
+            {(stats.active > 0 ||
+              stats.expiringSoon > 0) && (
+              <div className="mt-6 grid gap-4 xl:grid-cols-2">
+                <InfoPanel
+                  title="Active permits"
+                  value={stats.active}
+                  description="Work currently authorized on site."
+                />
+
+                <InfoPanel
+                  title="Expiring within 2 hours"
+                  value={stats.expiringSoon}
+                  description="Review these permits before their validity window ends."
+                  warning
+                />
+              </div>
+            )}
+
+            {/* Filters */}
             <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900">
               <div className="border-b border-slate-800 p-5">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                  <div>
-                    <h2 className="font-semibold">
-                      Permits
-                    </h2>
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                    <div>
+                      <h2 className="font-semibold">
+                        Permit register
+                      </h2>
 
-                    <p className="mt-1 text-sm text-slate-500">
-                      Monitor permit status and work controls.
-                    </p>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {filteredPermits.length} of{" "}
+                        {permits.length} permits shown
+                      </p>
+                    </div>
+
+                    <button
+                      onClick={clearFilters}
+                      className="self-start rounded-lg px-3 py-2 text-sm text-slate-400 hover:bg-slate-800 hover:text-white"
+                    >
+                      Clear filters
+                    </button>
                   </div>
 
-                  <div className="flex flex-col gap-3 sm:flex-row">
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
                     <input
                       value={search}
                       onChange={(event) =>
                         setSearch(event.target.value)
                       }
-                      placeholder="Search permit, work or area..."
-                      className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-white outline-none focus:border-emerald-500"
+                      placeholder="Search permit, work, area..."
+                      className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-white outline-none focus:border-emerald-500 xl:col-span-2"
                     />
 
                     <select
@@ -373,14 +592,13 @@ export default function DashboardPage() {
                       <option value="APPROVED">
                         Approved
                       </option>
-                      <option value="ACTIVE">
-                        Active
-                      </option>
+                      <option value="ACTIVE">Active</option>
                       <option value="SUSPENDED">
                         Suspended
                       </option>
-                      <option value="CLOSED">
-                        Closed
+                      <option value="CLOSED">Closed</option>
+                      <option value="CLOSED_VERIFIED">
+                        Closed Verified
                       </option>
                       <option value="REJECTED">
                         Rejected
@@ -413,42 +631,131 @@ export default function DashboardPage() {
                         Electrical / LOTO
                       </option>
                     </select>
+
+                    <select
+                      value={areaFilter}
+                      onChange={(event) =>
+                        setAreaFilter(event.target.value)
+                      }
+                      className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-white outline-none"
+                    >
+                      <option value="ALL">
+                        All Areas
+                      </option>
+
+                      {areas.map(([id, name]) => (
+                        <option key={id} value={id}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      onClick={() =>
+                        setPendingOnly(!pendingOnly)
+                      }
+                      className={`rounded-xl border px-4 py-2.5 text-sm font-medium transition ${
+                        pendingOnly
+                          ? "border-amber-500/40 bg-amber-500/10 text-amber-400"
+                          : "border-slate-700 bg-slate-950 text-slate-400 hover:text-white"
+                      }`}
+                    >
+                      {pendingOnly
+                        ? "My Approvals: ON"
+                        : "My Approvals"}
+                    </button>
+                  </div>
+
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-2 block text-xs font-medium text-slate-500">
+                        From date
+                      </label>
+
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(event) =>
+                          setStartDate(event.target.value)
+                        }
+                        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-2 block text-xs font-medium text-slate-500">
+                        To date
+                      </label>
+
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(event) =>
+                          setEndDate(event.target.value)
+                        }
+                        className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-white outline-none focus:border-emerald-500"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
 
+              {/* Table */}
               {loading ? (
                 <div className="p-12 text-center text-slate-500">
                   Loading permits...
                 </div>
               ) : error ? (
-                <div className="p-12 text-center text-red-400">
-                  {error}
+                <div className="p-12 text-center">
+                  <p className="text-red-400">
+                    {error}
+                  </p>
+
+                  <button
+                    onClick={() => void loadPermits(true)}
+                    className="mt-4 rounded-lg bg-slate-800 px-4 py-2 text-sm text-white"
+                  >
+                    Retry
+                  </button>
                 </div>
               ) : filteredPermits.length === 0 ? (
-                <div className="p-12 text-center text-slate-500">
-                  No permits match the selected filters.
+                <div className="p-12 text-center">
+                  <p className="text-slate-400">
+                    No permits match the selected filters.
+                  </p>
+
+                  <button
+                    onClick={clearFilters}
+                    className="mt-3 text-sm text-emerald-400 hover:text-emerald-300"
+                  >
+                    Clear filters
+                  </button>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[950px]">
+                  <table className="w-full min-w-[1050px]">
                     <thead>
                       <tr className="border-b border-slate-800 text-left text-xs uppercase tracking-wider text-slate-500">
                         <th className="px-5 py-4">
                           Permit
                         </th>
+
                         <th className="px-5 py-4">
                           Type
                         </th>
+
                         <th className="px-5 py-4">
                           Location
                         </th>
+
                         <th className="px-5 py-4">
                           Requester
                         </th>
+
                         <th className="px-5 py-4">
                           Validity
                         </th>
+
                         <th className="px-5 py-4">
                           Status
                         </th>
@@ -457,75 +764,115 @@ export default function DashboardPage() {
 
                     <tbody>
                       {filteredPermits.map(
-                        (permit) => (
-                          <tr
-                            key={permit.id}
-                            onClick={() =>
-                              router.push(
-                                `/permits/${permit.id}`
-                              )
-                            }
-                            className="cursor-pointer border-b border-slate-800/70 transition hover:bg-slate-800/40"
-                          >
-                            <td className="px-5 py-4">
-                              <p className="font-semibold">
-                                {permit.permitNumber}
-                              </p>
+                        (permit) => {
+                          const expiring =
+                            isExpiringSoon(permit);
 
-                              <p className="mt-1 max-w-xs truncate text-sm text-slate-500">
-                                {permit.workDescription}
-                              </p>
-                            </td>
+                          const myPendingApproval =
+                            currentUser !== null &&
+                            permit.approvals.some(
+                              (approval) =>
+                                approval.approverId ===
+                                  currentUser.id &&
+                                approval.status ===
+                                  "PENDING"
+                            );
 
-                            <td className="px-5 py-4 text-sm text-slate-300">
-                              {formatType(
-                                permit.type
-                              )}
-                            </td>
+                          return (
+                            <tr
+                              key={permit.id}
+                              onClick={() =>
+                                router.push(
+                                  `/permits/${permit.id}`
+                                )
+                              }
+                              className={`cursor-pointer border-b border-slate-800/70 transition hover:bg-slate-800/40 ${
+                                expiring
+                                  ? "bg-amber-500/[0.03]"
+                                  : ""
+                              }`}
+                            >
+                              <td className="px-5 py-4">
+                                <div className="flex items-start gap-3">
+                                  <div>
+                                    <div className="flex items-center gap-2">
+                                      <p className="font-semibold">
+                                        {
+                                          permit.permitNumber
+                                        }
+                                      </p>
 
-                            <td className="px-5 py-4">
-                              <p className="text-sm text-slate-300">
-                                {permit.area.name}
-                              </p>
+                                      {myPendingApproval && (
+                                        <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400">
+                                          YOUR APPROVAL
+                                        </span>
+                                      )}
+                                    </div>
 
-                              <p className="text-xs text-slate-500">
-                                {permit.plant.code}
-                              </p>
-                            </td>
+                                    <p className="mt-1 max-w-xs truncate text-sm text-slate-500">
+                                      {
+                                        permit.workDescription
+                                      }
+                                    </p>
+                                  </div>
+                                </div>
+                              </td>
 
-                            <td className="px-5 py-4 text-sm text-slate-300">
-                              {permit.requester.name}
-                            </td>
-
-                            <td className="px-5 py-4">
-                              <p className="text-xs text-slate-400">
-                                {formatDate(
-                                  permit.plannedStart
+                              <td className="px-5 py-4 text-sm text-slate-300">
+                                {formatType(
+                                  permit.type
                                 )}
-                              </p>
+                              </td>
 
-                              <p className="mt-1 text-xs text-slate-500">
-                                →{" "}
-                                {formatDate(
-                                  permit.plannedEnd
-                                )}
-                              </p>
-                            </td>
+                              <td className="px-5 py-4">
+                                <p className="text-sm text-slate-300">
+                                  {permit.area.name}
+                                </p>
 
-                            <td className="px-5 py-4">
-                              <span
-                                className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${statusClasses(
-                                  permit.status
-                                )}`}
-                              >
-                                {permit.status.replace(
-                                  "_",
-                                  " "
+                                <p className="text-xs text-slate-500">
+                                  {permit.plant.code}
+                                </p>
+                              </td>
+
+                              <td className="px-5 py-4 text-sm text-slate-300">
+                                {permit.requester.name}
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <p className="text-xs text-slate-400">
+                                  {formatDate(
+                                    permit.plannedStart
+                                  )}
+                                </p>
+
+                                <p className="mt-1 text-xs text-slate-500">
+                                  →{" "}
+                                  {formatDate(
+                                    permit.plannedEnd
+                                  )}
+                                </p>
+
+                                {expiring && (
+                                  <p className="mt-1 text-xs font-medium text-amber-400">
+                                    Expires within 2h
+                                  </p>
                                 )}
-                              </span>
-                            </td>
-                          </tr>
-                        )
+                              </td>
+
+                              <td className="px-5 py-4">
+                                <span
+                                  className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-medium ${statusClasses(
+                                    permit.status
+                                  )}`}
+                                >
+                                  {formatStatus(
+                                    permit.status
+                                  )}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        }
                       )}
                     </tbody>
                   </table>
@@ -568,6 +915,46 @@ function StatCard({
         }`}
       >
         {value}
+      </p>
+    </div>
+  );
+}
+
+function InfoPanel({
+  title,
+  value,
+  description,
+  warning = false,
+}: {
+  title: string;
+  value: number;
+  description: string;
+  warning?: boolean;
+}) {
+  return (
+    <div
+      className={`rounded-2xl border p-5 ${
+        warning
+          ? "border-amber-500/20 bg-amber-500/[0.04]"
+          : "border-slate-800 bg-slate-900"
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <p className="font-semibold">{title}</p>
+
+        <span
+          className={`text-2xl font-bold ${
+            warning
+              ? "text-amber-400"
+              : "text-emerald-400"
+          }`}
+        >
+          {value}
+        </span>
+      </div>
+
+      <p className="mt-2 text-sm text-slate-500">
+        {description}
       </p>
     </div>
   );
