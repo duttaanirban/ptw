@@ -23,6 +23,27 @@ function getPermitId(req: AuthRequest): string {
   return permitId;
 }
 
+function getApprovalSignature(req: AuthRequest): string {
+  const signature = req.body?.signature;
+
+  if (typeof signature !== "string" || !signature.trim()) {
+    throw new Error("Digital signature is required for approval");
+  }
+
+  const normalized = signature.trim();
+
+  if (!normalized.startsWith("data:image/png;base64,")) {
+    throw new Error("Invalid digital signature format");
+  }
+
+  // Keep the audit payload reasonably bounded.
+  if (normalized.length > 250_000) {
+    throw new Error("Digital signature is too large");
+  }
+
+  return normalized;
+}
+
 export async function submitPermitController(
   req: AuthRequest,
   res: Response
@@ -63,7 +84,8 @@ export async function approvePermitController(
         userId: req.user!.userId,
         role: req.user!.role as any,
       },
-      req.body?.comment
+      req.body?.comment,
+      getApprovalSignature(req)
     );
 
     return res.json({

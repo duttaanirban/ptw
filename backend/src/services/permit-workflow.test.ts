@@ -1,7 +1,11 @@
-import { afterAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  describe,
+  expect,
+  it,
+} from "vitest";
 
 import {
-  ApprovalRole,
   PermitStatus,
   UserRole,
 } from "../../generated/prisma/client";
@@ -42,20 +46,54 @@ async function getUser(email: string) {
   return user;
 }
 
+/**
+ * Make the test fixture deterministic.
+ *
+ * The application has automatic expiry handling, so hard-coded historical
+ * dates can make otherwise valid workflow tests fail on later runs.
+ */
+async function preparePermit(
+  permitNumber: string,
+  status: PermitStatus,
+  startOffsetMinutes = 60,
+  endOffsetMinutes = 120
+) {
+  const now = new Date();
+
+  const plannedStart = new Date(
+    now.getTime() + startOffsetMinutes * 60 * 1000
+  );
+
+  const plannedEnd = new Date(
+    now.getTime() + endOffsetMinutes * 60 * 1000
+  );
+
+  return prisma.permit.update({
+    where: {
+      permitNumber,
+    },
+    data: {
+      status,
+      plannedStart,
+      plannedEnd,
+    },
+  });
+}
+
 describe("PTW workflow rules", () => {
   it("prevents a requester from approving a permit", async () => {
-  const permit = await getPermit("PTW-SEED-002");
-  const requester = await getUser("requester@ptw.local");
+    const permit = await getPermit("PTW-SEED-002");
+    const requester = await getUser("requester@ptw.local");
 
-  await expect(
-    approvePermit(permit.id, {
-      userId: requester.id,
-      role: UserRole.REQUESTER,
-    })
-  ).rejects.toThrow(
-    "Only an area owner or safety officer can approve a permit"
-  );
-});
+    await expect(
+      approvePermit(permit.id, {
+        userId: requester.id,
+        role: UserRole.REQUESTER,
+      })
+    ).rejects.toThrow(
+      "Only an area owner or safety officer can approve a permit"
+    );
+  });
 
   it("requires a rejection reason", async () => {
     const permit = await getPermit("PTW-SEED-002");
@@ -70,6 +108,13 @@ describe("PTW workflow rules", () => {
   });
 
   it("prevents activation before the planned start time", async () => {
+    await preparePermit(
+      "PTW-SEED-003",
+      PermitStatus.APPROVED,
+      60,
+      120
+    );
+
     const permit = await getPermit("PTW-SEED-003");
     const areaOwner = await getUser("owner@ptw.local");
 
@@ -86,6 +131,13 @@ describe("PTW workflow rules", () => {
   });
 
   it("requires completion notes when closing a permit", async () => {
+    await preparePermit(
+      "PTW-SEED-004",
+      PermitStatus.ACTIVE,
+      -30,
+      120
+    );
+
     const permit = await getPermit("PTW-SEED-004");
     const requester = await getUser("requester@ptw.local");
 
@@ -97,6 +149,13 @@ describe("PTW workflow rules", () => {
   });
 
   it("does not allow a non-requester to close someone else's permit", async () => {
+    await preparePermit(
+      "PTW-SEED-004",
+      PermitStatus.ACTIVE,
+      -30,
+      120
+    );
+
     const permit = await getPermit("PTW-SEED-004");
     const areaOwner = await getUser("owner@ptw.local");
 
@@ -108,6 +167,13 @@ describe("PTW workflow rules", () => {
   });
 
   it("prevents non-safety users from verifying closure", async () => {
+    await preparePermit(
+      "PTW-SEED-006",
+      PermitStatus.CLOSED,
+      -30,
+      120
+    );
+
     const permit = await getPermit("PTW-SEED-006");
     const requester = await getUser("requester@ptw.local");
 
@@ -121,6 +187,13 @@ describe("PTW workflow rules", () => {
   });
 
   it("prevents edits while a permit is ACTIVE", async () => {
+    await preparePermit(
+      "PTW-SEED-004",
+      PermitStatus.ACTIVE,
+      -30,
+      120
+    );
+
     const permit = await getPermit("PTW-SEED-004");
     const requester = await getUser("requester@ptw.local");
 
@@ -132,6 +205,13 @@ describe("PTW workflow rules", () => {
   });
 
   it("records an audit entry for a post-submission field edit", async () => {
+    await preparePermit(
+      "PTW-SEED-002",
+      PermitStatus.PENDING_APPROVAL,
+      60,
+      120
+    );
+
     const permit = await getPermit("PTW-SEED-002");
     const requester = await getUser("requester@ptw.local");
 
@@ -147,7 +227,9 @@ describe("PTW workflow rules", () => {
       }
     );
 
-    expect(updatedPermit.workDescription).toBe(updatedDescription);
+    expect(updatedPermit.workDescription).toBe(
+      updatedDescription
+    );
 
     const audit = await prisma.permitAuditLog.findFirst({
       where: {
@@ -172,7 +254,9 @@ describe("PTW workflow rules", () => {
 
     // Restore the seeded record without generating another audit entry.
     await prisma.permit.update({
-      where: { id: permit.id },
+      where: {
+        id: permit.id,
+      },
       data: {
         workDescription: originalDescription,
       },

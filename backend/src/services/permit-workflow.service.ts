@@ -160,7 +160,8 @@ export async function submitPermit(
 export async function approvePermit(
   permitId: string,
   actor: WorkflowUser,
-  comment?: string
+  comment?: string,
+  signature?: string
 ) {
   if (
     actor.role !== UserRole.AREA_OWNER &&
@@ -170,6 +171,23 @@ export async function approvePermit(
     throw workflowError(
       "Only an area owner or safety officer can approve a permit"
     );
+  }
+
+  // Every approval must include a captured digital signature.
+  // Keep this validation in the service as well as the controller so the
+  // business rule is enforced even if the service is called directly.
+  if (!signature?.trim()) {
+    throw workflowError("Digital signature is required for approval");
+  }
+
+  const normalizedSignature = signature.trim();
+
+  if (!normalizedSignature.startsWith("data:image/png;base64,")) {
+    throw workflowError("Invalid digital signature format");
+  }
+
+  if (normalizedSignature.length > 250_000) {
+    throw workflowError("Digital signature is too large");
   }
 
   const permit = await prisma.permit.findUnique({
@@ -270,6 +288,11 @@ export async function approvePermit(
         fromStatus: PermitStatus.PENDING_APPROVAL,
         toStatus: newStatus,
         comment,
+        newValue: {
+          approvalRole,
+          signature: normalizedSignature,
+          signedAt: new Date().toISOString(),
+        },
       },
     });
 
