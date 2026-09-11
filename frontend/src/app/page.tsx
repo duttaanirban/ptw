@@ -157,6 +157,7 @@ export default function DashboardPage() {
   const [endDate, setEndDate] = useState("");
 
   const [pendingOnly, setPendingOnly] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const loadPermits = useCallback(
     async (isRefresh = false) => {
@@ -371,6 +372,7 @@ export default function DashboardPage() {
   }
 
   function logout() {
+    setMobileMenuOpen(false);
     localStorage.removeItem("ptw_token");
     localStorage.removeItem("ptw_user");
     router.push("/login");
@@ -378,6 +380,97 @@ export default function DashboardPage() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
+      {mobileMenuOpen && (
+        <>
+          <button
+            type="button"
+            aria-label="Close navigation"
+            onClick={() => setMobileMenuOpen(false)}
+            className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+          />
+
+          <aside className="fixed inset-y-0 left-0 z-50 flex w-[min(19rem,85vw)] flex-col border-r border-slate-800 bg-slate-900 shadow-2xl lg:hidden">
+            <div className="flex items-center justify-between border-b border-slate-800 p-5">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500 text-xs font-black text-slate-950">
+                  PTW
+                </div>
+                <div className="min-w-0">
+                  <p className="truncate font-semibold">Permit Control</p>
+                  <p className="text-xs text-slate-500">CMMS Safety Module</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                aria-label="Close navigation"
+                onClick={() => setMobileMenuOpen(false)}
+                className="rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white"
+              >
+                ×
+              </button>
+            </div>
+
+            <nav className="space-y-2 p-4">
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="w-full rounded-xl bg-slate-800 px-4 py-3 text-left text-sm font-medium text-white"
+              >
+                Dashboard
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  router.push("/permits/new");
+                }}
+                className="w-full rounded-xl px-4 py-3 text-left text-sm text-slate-400 hover:bg-slate-800 hover:text-white"
+              >
+                Create Permit
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingOnly(true);
+                  setMobileMenuOpen(false);
+                }}
+                className="flex w-full items-center justify-between rounded-xl px-4 py-3 text-left text-sm text-slate-400 hover:bg-slate-800 hover:text-white"
+              >
+                <span>My Approvals</span>
+                {stats.myApprovals > 0 && (
+                  <span className="rounded-full bg-amber-500 px-2 py-0.5 text-xs font-bold text-slate-950">
+                    {stats.myApprovals}
+                  </span>
+                )}
+              </button>
+            </nav>
+
+            <div className="mt-auto p-4">
+              <div className="mb-3 rounded-xl border border-slate-800 bg-slate-950/50 p-3">
+                <p className="text-xs text-slate-500">Signed in as</p>
+                <p className="mt-1 truncate text-sm font-medium">
+                  {currentUser?.name || "User"}
+                </p>
+                <p className="mt-0.5 text-xs text-slate-500">
+                  {currentUser?.role?.replaceAll("_", " ").toLowerCase()}
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={logout}
+                className="w-full rounded-xl border border-slate-800 px-4 py-3 text-sm text-slate-400 hover:bg-slate-800 hover:text-white"
+              >
+                Sign out
+              </button>
+            </div>
+          </aside>
+        </>
+      )}
+
       <div className="flex min-h-screen">
         {/* Sidebar */}
         <aside className="hidden w-64 shrink-0 flex-col border-r border-slate-800 bg-slate-900 lg:flex">
@@ -456,8 +549,18 @@ export default function DashboardPage() {
         {/* Main */}
         <section className="min-w-0 flex-1">
           <header className="border-b border-slate-800 bg-slate-950/90">
-            <div className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between lg:px-8">
-              <div>
+            <div className="relative flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:py-5 lg:px-8">
+              <button
+                type="button"
+                aria-label="Open navigation"
+                aria-expanded={mobileMenuOpen}
+                onClick={() => setMobileMenuOpen(true)}
+                className="absolute left-4 top-4 inline-flex h-10 w-10 items-center justify-center rounded-xl border border-slate-700 bg-slate-900 text-lg text-slate-200 hover:bg-slate-800 lg:hidden"
+              >
+                ☰
+              </button>
+
+              <div className="pl-14 sm:pl-0">
                 <p className="text-sm text-slate-500">
                   Operations / Permits
                 </p>
