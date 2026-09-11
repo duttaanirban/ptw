@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/app/lib/api";
 import { QRCodeSVG } from "qrcode.react";
+import PermitActions from "./components/PermitActions";
 
 type PermitStatus =
   | "DRAFT"
@@ -939,12 +940,19 @@ export default function PermitDetailPage() {
                   permit.status
                 ) &&
                 !editing && (
-                  <ActionButton
-                    label="Edit permit"
+                  // <ActionButton
+                  //   label="Edit permit"
+                  //   onClick={startEditing}
+                  //   loading={false}
+                  //   secondary
+                  // />
+                  <button
+                    type="button"
                     onClick={startEditing}
-                    loading={false}
-                    secondary
-                  />
+                    className="mb-3 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm font-semibold text-slate-300 transition hover:bg-slate-800"
+                  >
+                    Edit permit
+                  </button>
                 )}
 
               {editing && (
@@ -1069,7 +1077,7 @@ export default function PermitDetailPage() {
                 </div>
               )}
 
-              {canSubmit && (
+              {/* {canSubmit && (
                 <ActionButton
                   label="Submit for approval"
                   onClick={handleSubmit}
@@ -1220,7 +1228,34 @@ export default function PermitDetailPage() {
                       role and this permit&apos;s current status.
                     </p>
                   </div>
-                )}
+                )} */}
+
+                <PermitActions
+                  canSubmit={canSubmit}
+                  canApprove={canApprove}
+                  canActivate={canActivate}
+                  canSuspend={canSuspend}
+                  canResume={canResume}
+                  canClose={canClose}
+                  canVerifyClose={canVerifyClose}
+                  canCancel={canCancel}
+                  actionLoading={actionLoading}
+                  comment={comment}
+                  setComment={setComment}
+                  completionNotes={completionNotes}
+                  setCompletionNotes={setCompletionNotes}
+                  signatureDataUrl={signatureDataUrl}
+                  setSignatureDataUrl={setSignatureDataUrl}
+                  onSubmit={handleSubmit}
+                  onApprove={handleApprove}
+                  onReject={handleReject}
+                  onActivate={handleActivate}
+                  onSuspend={handleSuspend}
+                  onResume={handleResume}
+                  onClose={handleClose}
+                  onVerifyClose={handleVerifyClose}
+                  onCancel={handleCancel}
+                />
             </Section>
 
             <Section title="Scan permit">
@@ -1334,186 +1369,186 @@ export default function PermitDetailPage() {
   );
 }
 
-function SignaturePad({
-  value,
-  onChange,
-}: {
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const drawingRef = useRef(false);
-  const [isDrawing, setIsDrawing] = useState(false);
+// function SignaturePad({
+//   value,
+//   onChange,
+// }: {
+//   value: string;
+//   onChange: (value: string) => void;
+// }) {
+//   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+//   const drawingRef = useRef(false);
+//   const [isDrawing, setIsDrawing] = useState(false);
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
+//   useEffect(() => {
+//     const canvas = canvasRef.current;
 
-    if (!canvas) {
-      return;
-    }
+//     if (!canvas) {
+//       return;
+//     }
 
-    const context = canvas.getContext("2d");
+//     const context = canvas.getContext("2d");
 
-    if (!context) {
-      return;
-    }
+//     if (!context) {
+//       return;
+//     }
 
-    context.fillStyle = "#020617";
-    context.fillRect(0, 0, canvas.width, canvas.height);
+//     context.fillStyle = "#020617";
+//     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    context.strokeStyle = "#f8fafc";
-    context.lineWidth = 3;
-    context.lineCap = "round";
-    context.lineJoin = "round";
-  }, []);
+//     context.strokeStyle = "#f8fafc";
+//     context.lineWidth = 3;
+//     context.lineCap = "round";
+//     context.lineJoin = "round";
+//   }, []);
 
-  function getPoint(event: React.PointerEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current;
+//   function getPoint(event: React.PointerEvent<HTMLCanvasElement>) {
+//     const canvas = canvasRef.current;
 
-    if (!canvas) {
-      return null;
-    }
+//     if (!canvas) {
+//       return null;
+//     }
 
-    const rect = canvas.getBoundingClientRect();
+//     const rect = canvas.getBoundingClientRect();
 
-    return {
-      x:
-        (event.clientX - rect.left) *
-        (canvas.width / rect.width),
-      y:
-        (event.clientY - rect.top) *
-        (canvas.height / rect.height),
-    };
-  }
+//     return {
+//       x:
+//         (event.clientX - rect.left) *
+//         (canvas.width / rect.width),
+//       y:
+//         (event.clientY - rect.top) *
+//         (canvas.height / rect.height),
+//     };
+//   }
 
-  function handlePointerDown(
-    event: React.PointerEvent<HTMLCanvasElement>
-  ) {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    const point = getPoint(event);
+//   function handlePointerDown(
+//     event: React.PointerEvent<HTMLCanvasElement>
+//   ) {
+//     const canvas = canvasRef.current;
+//     const context = canvas?.getContext("2d");
+//     const point = getPoint(event);
 
-    if (!canvas || !context || !point) {
-      return;
-    }
+//     if (!canvas || !context || !point) {
+//       return;
+//     }
 
-    drawingRef.current = true;
-    setIsDrawing(true);
-    canvas.setPointerCapture(event.pointerId);
+//     drawingRef.current = true;
+//     setIsDrawing(true);
+//     canvas.setPointerCapture(event.pointerId);
 
-    context.beginPath();
-    context.moveTo(point.x, point.y);
-  }
+//     context.beginPath();
+//     context.moveTo(point.x, point.y);
+//   }
 
-  function handlePointerMove(
-    event: React.PointerEvent<HTMLCanvasElement>
-  ) {
-    if (!drawingRef.current) {
-      return;
-    }
+//   function handlePointerMove(
+//     event: React.PointerEvent<HTMLCanvasElement>
+//   ) {
+//     if (!drawingRef.current) {
+//       return;
+//     }
 
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
-    const point = getPoint(event);
+//     const canvas = canvasRef.current;
+//     const context = canvas?.getContext("2d");
+//     const point = getPoint(event);
 
-    if (!canvas || !context || !point) {
-      return;
-    }
+//     if (!canvas || !context || !point) {
+//       return;
+//     }
 
-    context.lineTo(point.x, point.y);
-    context.stroke();
-  }
+//     context.lineTo(point.x, point.y);
+//     context.stroke();
+//   }
 
-  function finishDrawing(event?: React.PointerEvent<HTMLCanvasElement>) {
-    const canvas = canvasRef.current;
+//   function finishDrawing(event?: React.PointerEvent<HTMLCanvasElement>) {
+//     const canvas = canvasRef.current;
 
-    if (!drawingRef.current || !canvas) {
-      return;
-    }
+//     if (!drawingRef.current || !canvas) {
+//       return;
+//     }
 
-    drawingRef.current = false;
-  setIsDrawing(false);
+//     drawingRef.current = false;
+//   setIsDrawing(false);
 
-    if (
-      event &&
-      canvas.hasPointerCapture(event.pointerId)
-    ) {
-      canvas.releasePointerCapture(event.pointerId);
-    }
+//     if (
+//       event &&
+//       canvas.hasPointerCapture(event.pointerId)
+//     ) {
+//       canvas.releasePointerCapture(event.pointerId);
+//     }
 
-    onChange(canvas.toDataURL("image/png"));
-  }
+//     onChange(canvas.toDataURL("image/png"));
+//   }
 
-  function clearSignature() {
-    const canvas = canvasRef.current;
-    const context = canvas?.getContext("2d");
+//   function clearSignature() {
+//     const canvas = canvasRef.current;
+//     const context = canvas?.getContext("2d");
 
-    if (!canvas || !context) {
-      return;
-    }
+//     if (!canvas || !context) {
+//       return;
+//     }
 
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = "#020617";
-    context.fillRect(0, 0, canvas.width, canvas.height);
+//     context.clearRect(0, 0, canvas.width, canvas.height);
+//     context.fillStyle = "#020617";
+//     context.fillRect(0, 0, canvas.width, canvas.height);
 
-    context.strokeStyle = "#f8fafc";
-    context.lineWidth = 3;
-    context.lineCap = "round";
-    context.lineJoin = "round";
+//     context.strokeStyle = "#f8fafc";
+//     context.lineWidth = 3;
+//     context.lineCap = "round";
+//     context.lineJoin = "round";
 
-    onChange("");
-  }
+//     onChange("");
+//   }
 
-  return (
-    <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-950 p-4">
-      <div className="mb-3 flex items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-slate-200">
-            Digital signature
-          </p>
-          <p className="mt-1 text-xs text-slate-500">
-            Sign inside the box to authorize this permit approval.
-          </p>
-        </div>
+//   return (
+//     <div className="mb-4 rounded-2xl border border-slate-800 bg-slate-950 p-4">
+//       <div className="mb-3 flex items-center justify-between gap-3">
+//         <div>
+//           <p className="text-sm font-semibold text-slate-200">
+//             Digital signature
+//           </p>
+//           <p className="mt-1 text-xs text-slate-500">
+//             Sign inside the box to authorize this permit approval.
+//           </p>
+//         </div>
 
-        <button
-          type="button"
-          onClick={clearSignature}
-          disabled={!value || isDrawing}
-          className="min-h-10 shrink-0 rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Clear
-        </button>
-      </div>
+//         <button
+//           type="button"
+//           onClick={clearSignature}
+//           disabled={!value || isDrawing}
+//           className="min-h-10 shrink-0 rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+//         >
+//           Clear
+//         </button>
+//       </div>
 
-      <div className="overflow-hidden rounded-xl border border-dashed border-slate-700 bg-slate-950">
-        <canvas
-          ref={canvasRef}
-          width={800}
-          height={240}
-          className="block h-36 w-full touch-none cursor-crosshair sm:h-40"
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={finishDrawing}
-          onPointerCancel={finishDrawing}
-          onPointerLeave={() => {
-            // Pointer capture keeps an in-progress signature drawing active.
-          }}
-        />
-      </div>
+//       <div className="overflow-hidden rounded-xl border border-dashed border-slate-700 bg-slate-950">
+//         <canvas
+//           ref={canvasRef}
+//           width={800}
+//           height={240}
+//           className="block h-36 w-full touch-none cursor-crosshair sm:h-40"
+//           onPointerDown={handlePointerDown}
+//           onPointerMove={handlePointerMove}
+//           onPointerUp={finishDrawing}
+//           onPointerCancel={finishDrawing}
+//           onPointerLeave={() => {
+//             // Pointer capture keeps an in-progress signature drawing active.
+//           }}
+//         />
+//       </div>
 
-      <div className="mt-2 flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between">
-        <span className="text-slate-600">
-          Draw with mouse, stylus, or touch.
-        </span>
+//       <div className="mt-2 flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between">
+//         <span className="text-slate-600">
+//           Draw with mouse, stylus, or touch.
+//         </span>
 
-        <span className={value ? "text-emerald-400" : "text-amber-400"}>
-          {value ? "Signature captured" : "Signature required"}
-        </span>
-      </div>
-    </div>
-  );
-}
+//         <span className={value ? "text-emerald-400" : "text-amber-400"}>
+//           {value ? "Signature captured" : "Signature required"}
+//         </span>
+//       </div>
+//     </div>
+//   );
+// }
 
 function Section({
   title,
@@ -1875,31 +1910,31 @@ function TypeSpecificSection({
   );
 }
 
-function ActionButton({
-  label,
-  onClick,
-  loading,
-  secondary = false,
-}: {
-  label: string;
-  onClick: () => void;
-  loading: boolean;
-  secondary?: boolean;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={loading}
-      className={`mb-3 w-full rounded-xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
-        secondary
-          ? "border border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800"
-          : "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
-      }`}
-    >
-      {loading ? "Processing..." : label}
-    </button>
-  );
-}
+// function ActionButton({
+//   label,
+//   onClick,
+//   loading,
+//   secondary = false,
+// }: {
+//   label: string;
+//   onClick: () => void;
+//   loading: boolean;
+//   secondary?: boolean;
+// }) {
+//   return (
+//     <button
+//       onClick={onClick}
+//       disabled={loading}
+//       className={`mb-3 w-full rounded-xl px-4 py-3 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 ${
+//         secondary
+//           ? "border border-slate-700 bg-slate-950 text-slate-300 hover:bg-slate-800"
+//           : "bg-emerald-500 text-slate-950 hover:bg-emerald-400"
+//       }`}
+//     >
+//       {loading ? "Processing..." : label}
+//     </button>
+//   );
+// }
 
 function StatusBadge({
   status,
