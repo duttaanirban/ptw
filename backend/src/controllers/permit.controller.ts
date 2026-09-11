@@ -188,3 +188,52 @@ export async function getPermitConflictsController(
     });
   }
 }
+
+export async function getPublicPermitController(
+  req: AuthRequest,
+  res: Response
+) {
+  try {
+    const permitId = req.params.id;
+
+    if (typeof permitId !== "string") {
+      return res.status(400).json({
+        message: "Permit ID is required",
+      });
+    }
+
+    const permit = await getPermitById(permitId);
+
+    return res.json({
+      permit: {
+        id: permit.id,
+        permitNumber: permit.permitNumber,
+        type: permit.type,
+        status: permit.status,
+        workDescription: permit.workDescription,
+        plannedStart: permit.plannedStart,
+        plannedEnd: permit.plannedEnd,
+        plant: {
+          name: permit.plant.name,
+          code: permit.plant.code,
+        },
+        area: {
+          name: permit.area.name,
+          code: permit.area.code,
+        },
+        equipment: permit.equipment
+          ? {
+              name: permit.equipment.name,
+              code: permit.equipment.code,
+            }
+          : null,
+      },
+    });
+  } catch (error: any) {
+    console.error("Public permit lookup error:", error);
+
+    return res.status(404).json({
+      message: "Permit not found",
+    });
+  }
+}

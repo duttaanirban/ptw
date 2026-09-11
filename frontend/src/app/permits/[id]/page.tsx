@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { apiFetch } from "@/app/lib/api";
+import { QRCodeSVG } from "qrcode.react";
 
 type PermitStatus =
   | "DRAFT"
@@ -630,6 +631,11 @@ export default function PermitDetailPage() {
       permit.status
     );
 
+  const publicPermitUrl =
+    typeof window !== "undefined"
+      ? `${window.location.origin}/scan/${permit.id}`
+      : `/scan/${permit.id}`;
+
   return (
     <main className="min-h-screen bg-slate-950 text-white">
       <div className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
@@ -1201,6 +1207,32 @@ export default function PermitDetailPage() {
                     </p>
                   </div>
                 )}
+            </Section>
+
+            <Section title="Scan permit">
+              <div className="flex flex-col items-center text-center">
+                <div className="rounded-2xl bg-white p-4">
+                  <QRCodeSVG
+                    value={publicPermitUrl}
+                    size={180}
+                    level="M"
+                    includeMargin
+                  />
+                </div>
+
+                <p className="mt-4 text-sm font-medium text-slate-200">
+                  Scan to view permit status
+                </p>
+
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Safety teams can scan this QR code during a walk-around
+                  to quickly check the permit status.
+                </p>
+
+                <p className="mt-3 break-all text-[11px] text-slate-600">
+                  {publicPermitUrl}
+                </p>
+              </div>
             </Section>
 
             <Section title="Permit status">
