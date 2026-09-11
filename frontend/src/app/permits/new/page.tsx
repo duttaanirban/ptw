@@ -187,8 +187,10 @@ export default function NewPermitPage() {
   });
 
   const [conflicts, setConflicts] = useState<PermitConflict[]>([]);
-  const [checkingConflicts, setCheckingConflicts] = useState(false);
-  const [conflictCheckError, setConflictCheckError] = useState<string | null>(null);
+  const [checkingConflicts, setCheckingConflicts] =
+    useState(false);
+  const [conflictCheckError, setConflictCheckError] =
+    useState<string | null>(null);
 
   const selectedAreas = useMemo(() => {
     return areas.filter(
@@ -203,82 +205,81 @@ export default function NewPermitPage() {
   }, [equipment, form.areaId]);
 
   useEffect(() => {
-  const token = localStorage.getItem("ptw_token") ?? undefined;
+    const token =
+      localStorage.getItem("ptw_token") ?? undefined;
 
-  if (!token) {
-    router.replace("/login");
-    return;
-  }
+    if (!token) {
+      router.replace("/login");
+      return;
+    }
 
-  async function loadOptions() {
-    try {
-      const response = await apiFetch<{
-        options: {
-          id: string;
-          name: string;
-          code: string;
-          areas: {
+    async function loadOptions() {
+      try {
+        const response = await apiFetch<{
+          options: {
             id: string;
             name: string;
             code: string;
-            plantId: string;
-            equipment: {
+            areas: {
               id: string;
               name: string;
               code: string;
-              areaId: string;
+              plantId: string;
+              equipment: {
+                id: string;
+                name: string;
+                code: string;
+                areaId: string;
+              }[];
             }[];
           }[];
-        }[];
-      }>("/api/permits/options", {
-        token,
-      });
+        }>("/api/permits/options", {
+          token,
+        });
 
-      const loadedPlants: Plant[] = response.options.map(
-        (plant) => ({
-          id: plant.id,
-          name: plant.name,
-          code: plant.code,
-        })
-      );
+        const loadedPlants: Plant[] =
+          response.options.map((plant) => ({
+            id: plant.id,
+            name: plant.name,
+            code: plant.code,
+          }));
 
-      const loadedAreas: Area[] = response.options.flatMap(
-        (plant) =>
-          plant.areas.map((area) => ({
-            id: area.id,
-            name: area.name,
-            code: area.code,
-            plantId: area.plantId,
-          }))
-      );
-
-      const loadedEquipment: Equipment[] =
-        response.options.flatMap((plant) =>
-          plant.areas.flatMap((area) =>
-            area.equipment.map((item) => ({
-              id: item.id,
-              name: item.name,
-              code: item.code,
-              areaId: item.areaId,
+        const loadedAreas: Area[] =
+          response.options.flatMap((plant) =>
+            plant.areas.map((area) => ({
+              id: area.id,
+              name: area.name,
+              code: area.code,
+              plantId: area.plantId,
             }))
-          )
+          );
+
+        const loadedEquipment: Equipment[] =
+          response.options.flatMap((plant) =>
+            plant.areas.flatMap((area) =>
+              area.equipment.map((item) => ({
+                id: item.id,
+                name: item.name,
+                code: item.code,
+                areaId: item.areaId,
+              }))
+            )
+          );
+
+        setPlants(loadedPlants);
+        setAreas(loadedAreas);
+        setEquipment(loadedEquipment);
+      } catch (error) {
+        alert(
+          error instanceof Error
+            ? error.message
+            : "Failed to load plant and equipment data"
         );
-
-      setPlants(loadedPlants);
-      setAreas(loadedAreas);
-      setEquipment(loadedEquipment);
-    } catch (error) {
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Failed to load plant and equipment data"
-      );
+      }
     }
-  }
 
-  void loadOptions();
-}, [router]);
-
+    void loadOptions();
+  }, [router]);
 
   function updateField(
     field: keyof PermitForm,
@@ -298,7 +299,8 @@ export default function NewPermitPage() {
   }
 
   async function checkPermitConflicts(): Promise<boolean> {
-    const token = localStorage.getItem("ptw_token") ?? undefined;
+    const token =
+      localStorage.getItem("ptw_token") ?? undefined;
 
     if (
       !token ||
@@ -320,8 +322,12 @@ export default function NewPermitPage() {
         type,
         plantId: form.plantId,
         areaId: form.areaId,
-        plannedStart: new Date(form.plannedStart).toISOString(),
-        plannedEnd: new Date(form.plannedEnd).toISOString(),
+        plannedStart: new Date(
+          form.plannedStart
+        ).toISOString(),
+        plannedEnd: new Date(
+          form.plannedEnd
+        ).toISOString(),
       });
 
       if (form.equipmentId) {
@@ -350,191 +356,221 @@ export default function NewPermitPage() {
   }
 
   async function nextStep() {
-  if (step === 1) {
-    if (!type) {
-      alert("Please select a permit type.");
+    if (step === 1) {
+      if (!type) {
+        alert("Please select a permit type.");
+        return;
+      }
+
+      setStep(2);
       return;
     }
 
-    setStep(2);
-    return;
+    if (step === 2) {
+      if (!form.contractorTeam.trim()) {
+        alert("Contractor / team is required.");
+        return;
+      }
+
+      if (!form.workDescription.trim()) {
+        alert("Work description is required.");
+        return;
+      }
+
+      if (!form.plantId) {
+        alert("Please select a plant.");
+        return;
+      }
+
+      if (!form.areaId) {
+        alert("Please select an area.");
+        return;
+      }
+
+      if (!form.plannedStart) {
+        alert("Planned start is required.");
+        return;
+      }
+
+      if (!form.plannedEnd) {
+        alert("Planned end is required.");
+        return;
+      }
+
+      const start = new Date(form.plannedStart);
+      const end = new Date(form.plannedEnd);
+
+      if (Number.isNaN(start.getTime())) {
+        alert("Please enter a valid planned start.");
+        return;
+      }
+
+      if (Number.isNaN(end.getTime())) {
+        alert("Please enter a valid planned end.");
+        return;
+      }
+
+      if (end <= start) {
+        alert(
+          "Planned end must be later than planned start."
+        );
+        return;
+      }
+
+      if (form.hazards.trim() === "") {
+        alert("Please add at least one hazard.");
+        return;
+      }
+
+      if (form.ppe.trim() === "") {
+        alert("Please add the required PPE.");
+        return;
+      }
+
+      if (form.precautions.trim() === "") {
+        alert("Please add at least one precaution.");
+        return;
+      }
+
+      setStep(3);
+      return;
+    }
+
+    if (step === 3) {
+      if (type === "HOT_WORK") {
+        if (!form.hotWorkType) {
+          alert("Hot work type is required.");
+          return;
+        }
+
+        if (!form.fireExtinguisherType) {
+          alert(
+            "Fire extinguisher type is required."
+          );
+          return;
+        }
+      }
+
+      if (type === "CONFINED_SPACE") {
+        if (!form.spaceId.trim()) {
+          alert("Space ID is required.");
+          return;
+        }
+
+        if (!form.entryPoint.trim()) {
+          alert("Entry point is required.");
+          return;
+        }
+
+        if (!form.standbyAttendant.trim()) {
+          alert(
+            "Standby attendant is required."
+          );
+          return;
+        }
+
+        if (!form.rescuePlan.trim()) {
+          alert("Rescue plan is required.");
+          return;
+        }
+
+        if (!form.ventilationMethod.trim()) {
+          alert(
+            "Ventilation method is required."
+          );
+          return;
+        }
+      }
+
+      if (type === "WORKING_AT_HEIGHT") {
+        const height = Number(
+          form.workHeightMeters
+        );
+
+        if (
+          !form.workHeightMeters ||
+          Number.isNaN(height)
+        ) {
+          alert(
+            "A valid work height is required."
+          );
+          return;
+        }
+
+        if (height <= 0) {
+          alert(
+            "Work height must be greater than 0."
+          );
+          return;
+        }
+
+        if (!form.accessMethod) {
+          alert("Access method is required.");
+          return;
+        }
+
+        if (!form.fallArrestEquipment.trim()) {
+          alert(
+            "Fall arrest equipment is required."
+          );
+          return;
+        }
+      }
+
+      if (type === "ELECTRICAL_LOTO") {
+        if (!form.equipmentTag.trim()) {
+          alert("Equipment tag is required.");
+          return;
+        }
+
+        if (!form.voltageLevel.trim()) {
+          alert("Voltage level is required.");
+          return;
+        }
+
+        if (!form.isolationPoints.trim()) {
+          alert(
+            "At least one isolation point is required."
+          );
+          return;
+        }
+
+        if (!form.lockNumbers.trim()) {
+          alert(
+            "At least one lock number is required."
+          );
+          return;
+        }
+
+        if (!form.tagNumbers.trim()) {
+          alert(
+            "At least one tag number is required."
+          );
+          return;
+        }
+
+        if (!form.testedDeadBy.trim()) {
+          alert(
+            "Tested dead by is required."
+          );
+          return;
+        }
+      }
+
+      const conflictCheckSucceeded =
+        await checkPermitConflicts();
+
+      if (!conflictCheckSucceeded) {
+        alert(
+          "Conflict check could not be completed. Please try again."
+        );
+        return;
+      }
+
+      setStep(4);
+      return;
+    }
   }
-
-  if (step === 2) {
-    if (!form.contractorTeam.trim()) {
-      alert("Contractor / team is required.");
-      return;
-    }
-
-    if (!form.workDescription.trim()) {
-      alert("Work description is required.");
-      return;
-    }
-
-    if (!form.plantId) {
-      alert("Please select a plant.");
-      return;
-    }
-
-    if (!form.areaId) {
-      alert("Please select an area.");
-      return;
-    }
-
-    if (!form.plannedStart) {
-      alert("Planned start is required.");
-      return;
-    }
-
-    if (!form.plannedEnd) {
-      alert("Planned end is required.");
-      return;
-    }
-
-    const start = new Date(form.plannedStart);
-    const end = new Date(form.plannedEnd);
-
-    if (Number.isNaN(start.getTime())) {
-      alert("Please enter a valid planned start.");
-      return;
-    }
-
-    if (Number.isNaN(end.getTime())) {
-      alert("Please enter a valid planned end.");
-      return;
-    }
-
-    if (end <= start) {
-      alert("Planned end must be later than planned start.");
-      return;
-    }
-
-    if (form.hazards.trim() === "") {
-      alert("Please add at least one hazard.");
-      return;
-    }
-
-    if (form.ppe.trim() === "") {
-      alert("Please add the required PPE.");
-      return;
-    }
-
-    if (form.precautions.trim() === "") {
-      alert("Please add at least one precaution.");
-      return;
-    }
-
-    setStep(3);
-    return;
-  }
-
-  if (step === 3) {
-    if (type === "HOT_WORK") {
-      if (!form.hotWorkType) {
-        alert("Hot work type is required.");
-        return;
-      }
-
-      if (!form.fireExtinguisherType) {
-        alert("Fire extinguisher type is required.");
-        return;
-      }
-    }
-
-    if (type === "CONFINED_SPACE") {
-      if (!form.spaceId.trim()) {
-        alert("Space ID is required.");
-        return;
-      }
-
-      if (!form.entryPoint.trim()) {
-        alert("Entry point is required.");
-        return;
-      }
-
-      if (!form.standbyAttendant.trim()) {
-        alert("Standby attendant is required.");
-        return;
-      }
-
-      if (!form.rescuePlan.trim()) {
-        alert("Rescue plan is required.");
-        return;
-      }
-
-      if (!form.ventilationMethod.trim()) {
-        alert("Ventilation method is required.");
-        return;
-      }
-    }
-
-    if (type === "WORKING_AT_HEIGHT") {
-      const height = Number(form.workHeightMeters);
-
-      if (!form.workHeightMeters || Number.isNaN(height)) {
-        alert("A valid work height is required.");
-        return;
-      }
-
-      if (height <= 0) {
-        alert("Work height must be greater than 0.");
-        return;
-      }
-
-      if (!form.accessMethod) {
-        alert("Access method is required.");
-        return;
-      }
-
-      if (!form.fallArrestEquipment.trim()) {
-        alert("Fall arrest equipment is required.");
-        return;
-      }
-    }
-
-    if (type === "ELECTRICAL_LOTO") {
-      if (!form.equipmentTag.trim()) {
-        alert("Equipment tag is required.");
-        return;
-      }
-
-      if (!form.voltageLevel.trim()) {
-        alert("Voltage level is required.");
-        return;
-      }
-
-      if (!form.isolationPoints.trim()) {
-        alert("At least one isolation point is required.");
-        return;
-      }
-
-      if (!form.lockNumbers.trim()) {
-        alert("At least one lock number is required.");
-        return;
-      }
-
-      if (!form.tagNumbers.trim()) {
-        alert("At least one tag number is required.");
-        return;
-      }
-
-      if (!form.testedDeadBy.trim()) {
-        alert("Tested dead by is required.");
-        return;
-      }
-    }
-
-    const conflictCheckSucceeded = await checkPermitConflicts();
-
-    if (!conflictCheckSucceeded) {
-      alert("Conflict check could not be completed. Please try again.");
-      return;
-    }
-
-    setStep(4);
-    return;
-  }
-}
 
   function previousStep() {
     setStep((current) => Math.max(1, current - 1));
@@ -545,7 +581,8 @@ export default function NewPermitPage() {
   ) {
     event.preventDefault();
 
-    const token = localStorage.getItem("ptw_token") ?? undefined;
+    const token =
+      localStorage.getItem("ptw_token") ?? undefined;
 
     if (!token) {
       router.replace("/login");
@@ -556,15 +593,19 @@ export default function NewPermitPage() {
       type,
       plantId: form.plantId,
       areaId: form.areaId,
-      equipmentId: form.equipmentId || undefined,
+      equipmentId:
+        form.equipmentId || undefined,
       contractorTeam: form.contractorTeam,
       workDescription: form.workDescription,
+
       plannedStart: new Date(
         form.plannedStart
       ).toISOString(),
+
       plannedEnd: new Date(
         form.plannedEnd
       ).toISOString(),
+
       hazards: splitLines(form.hazards),
       ppe: splitLines(form.ppe),
       precautions: splitLines(form.precautions),
@@ -573,21 +614,30 @@ export default function NewPermitPage() {
     if (type === "HOT_WORK") {
       payload.hotWorkDetails = {
         hotWorkType: form.hotWorkType,
-        fireWatchAssigned: form.fireWatchAssigned,
+        fireWatchAssigned:
+          form.fireWatchAssigned,
         fireExtinguisherType:
           form.fireExtinguisherType,
+
         combustiblesClearedRadius:
           form.combustiblesClearedRadius
-            ? Number(form.combustiblesClearedRadius)
+            ? Number(
+                form.combustiblesClearedRadius
+              )
             : undefined,
+
         lelPercent: form.lelPercent
           ? Number(form.lelPercent)
           : undefined,
+
         oxygenPercent: form.oxygenPercent
           ? Number(form.oxygenPercent)
           : undefined,
+
         gasTestTime: form.gasTestTime
-          ? new Date(form.gasTestTime).toISOString()
+          ? new Date(
+              form.gasTestTime
+            ).toISOString()
           : undefined,
       };
     }
@@ -596,29 +646,44 @@ export default function NewPermitPage() {
       payload.confinedSpaceDetails = {
         spaceId: form.spaceId,
         entryPoint: form.entryPoint,
+
         oxygenPercent:
           form.confinedOxygenPercent
-            ? Number(form.confinedOxygenPercent)
+            ? Number(
+                form.confinedOxygenPercent
+              )
             : undefined,
+
         lelPercent:
           form.confinedLelPercent
-            ? Number(form.confinedLelPercent)
+            ? Number(
+                form.confinedLelPercent
+              )
             : undefined,
+
         h2sPpm: form.h2sPpm
           ? Number(form.h2sPpm)
           : undefined,
+
         coPpm: form.coPpm
           ? Number(form.coPpm)
           : undefined,
+
         atmosphericTestTime:
           form.atmosphericTestTime
             ? new Date(
                 form.atmosphericTestTime
               ).toISOString()
             : undefined,
-        standbyAttendant: form.standbyAttendant,
+
+        standbyAttendant:
+          form.standbyAttendant,
+
         rescuePlan: form.rescuePlan,
-        ventilationMethod: form.ventilationMethod,
+
+        ventilationMethod:
+          form.ventilationMethod,
+
         entryExitLog: [],
       };
     }
@@ -628,13 +693,19 @@ export default function NewPermitPage() {
         workHeightMeters: Number(
           form.workHeightMeters
         ),
-        accessMethod: form.accessMethod,
+
+        accessMethod:
+          form.accessMethod,
+
         fallArrestEquipment:
           form.fallArrestEquipment,
+
         anchorPointVerified:
           form.anchorPointVerified,
+
         barricadingBelow:
           form.barricadingBelow,
+
         weatherConditions:
           form.weatherConditions || undefined,
       };
@@ -642,24 +713,41 @@ export default function NewPermitPage() {
 
     if (type === "ELECTRICAL_LOTO") {
       payload.electricalLotoDetails = {
-        equipmentTag: form.equipmentTag,
-        voltageLevel: form.voltageLevel,
+        equipmentTag:
+          form.equipmentTag,
+
+        voltageLevel:
+          form.voltageLevel,
+
         isolationPoints:
           splitLines(form.isolationPoints),
+
         lockNumbers:
           splitLines(form.lockNumbers),
+
         tagNumbers:
           splitLines(form.tagNumbers),
-        earthingApplied: form.earthingApplied,
-        testedDeadBy: form.testedDeadBy,
+
+        earthingApplied:
+          form.earthingApplied,
+
+        testedDeadBy:
+          form.testedDeadBy,
+
         isolationMethod:
           form.isolationMethod || undefined,
-        lotoApplied: form.lotoApplied,
+
+        lotoApplied:
+          form.lotoApplied,
+
         verificationMethod:
-          form.verificationMethod || undefined,
+          form.verificationMethod ||
+          undefined,
       };
     }
+
     setSubmitting(true);
+
     try {
       const response = await apiFetch<{
         permit: {
@@ -672,7 +760,9 @@ export default function NewPermitPage() {
         body: JSON.stringify(payload),
       });
 
-      router.push(`/permits/${response.permit.id}`);
+      router.push(
+        `/permits/${response.permit.id}`
+      );
     } catch (error) {
       alert(
         error instanceof Error
@@ -701,19 +791,26 @@ export default function NewPermitPage() {
             </h1>
 
             <p className="mt-2 text-slate-500">
-              Create a work authorization with the required safety controls.
+              Create a work authorization with the
+              required safety controls.
             </p>
           </div>
 
           <div className="sm:hidden">
-            <p className="text-xs uppercase tracking-wider text-slate-500">Step</p>
-            <p className="mt-1 text-lg font-bold">{step} / 4</p>
+            <p className="text-xs uppercase tracking-wider text-slate-500">
+              Step
+            </p>
+
+            <p className="mt-1 text-lg font-bold">
+              {step} / 4
+            </p>
           </div>
 
           <div className="hidden text-right sm:block">
             <p className="text-xs uppercase tracking-wider text-slate-500">
               Step
             </p>
+
             <p className="text-xl font-bold">
               {step} / 4
             </p>
@@ -763,7 +860,8 @@ export default function NewPermitPage() {
                 </h2>
 
                 <p className="mt-1 text-sm text-slate-500">
-                  Choose the type of hazardous work being performed.
+                  Choose the type of hazardous work
+                  being performed.
                 </p>
               </div>
 
@@ -833,39 +931,43 @@ export default function NewPermitPage() {
                 />
 
                 <SelectField
-                    label="Plant"
-                    value={form.plantId}
-                    onChange={(value) => {
-                        setForm((current) => ({
-                        ...current,
-                        plantId: value,
-                        areaId: "",
-                        equipmentId: "",
-                        }));
-                    }}
-                    options={plants.map((plant) => ({
-                        value: plant.id,
-                        label: `${plant.name} (${plant.code})`,
-                    }))}
-                    placeholder="Select plant"
-                    />
+                  label="Plant"
+                  value={form.plantId}
+                  onChange={(value) => {
+                    setForm((current) => ({
+                      ...current,
+                      plantId: value,
+                      areaId: "",
+                      equipmentId: "",
+                    }));
+                  }}
+                  options={plants.map(
+                    (plant) => ({
+                      value: plant.id,
+                      label: `${plant.name} (${plant.code})`,
+                    })
+                  )}
+                  placeholder="Select plant"
+                />
 
                 <SelectField
-                    label="Area"
-                    value={form.areaId}
-                    onChange={(value) => {
-                        setForm((current) => ({
-                        ...current,
-                        areaId: value,
-                        equipmentId: "",
-                        }));
-                    }}
-                    options={selectedAreas.map((area) => ({
-                        value: area.id,
-                        label: `${area.name} (${area.code})`,
-                    }))}
-                    placeholder="Select area"
-                    />
+                  label="Area"
+                  value={form.areaId}
+                  onChange={(value) => {
+                    setForm((current) => ({
+                      ...current,
+                      areaId: value,
+                      equipmentId: "",
+                    }));
+                  }}
+                  options={selectedAreas.map(
+                    (area) => ({
+                      value: area.id,
+                      label: `${area.name} (${area.code})`,
+                    })
+                  )}
+                  placeholder="Select area"
+                />
 
                 <SelectField
                   label="Equipment"
@@ -885,6 +987,7 @@ export default function NewPermitPage() {
                   placeholder="Select equipment"
                 />
 
+                {/* Native browser date/time picker */}
                 <Field
                   label="Planned start"
                   type="datetime-local"
@@ -898,10 +1001,12 @@ export default function NewPermitPage() {
                   required
                 />
 
+                {/* End time cannot be earlier than the selected start */}
                 <Field
                   label="Planned end"
                   type="datetime-local"
                   value={form.plannedEnd}
+                  min={form.plannedStart}
                   onChange={(value) =>
                     updateField(
                       "plannedEnd",
@@ -968,8 +1073,12 @@ export default function NewPermitPage() {
               type={type}
               form={form}
               conflicts={conflicts}
-              checkingConflicts={checkingConflicts}
-              conflictCheckError={conflictCheckError}
+              checkingConflicts={
+                checkingConflicts
+              }
+              conflictCheckError={
+                conflictCheckError
+              }
             />
           )}
 
@@ -978,7 +1087,7 @@ export default function NewPermitPage() {
               type="button"
               onClick={previousStep}
               disabled={step === 1}
-              className="w-full rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-300 sm:w-auto sm:py-2.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-30"
+              className="w-full rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-30 sm:w-auto sm:py-2.5"
             >
               Back
             </button>
@@ -987,7 +1096,7 @@ export default function NewPermitPage() {
               <button
                 type="button"
                 onClick={nextStep}
-                className="w-full rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 sm:w-auto sm:py-2.5 hover:bg-emerald-400"
+                className="w-full rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400 sm:w-auto sm:py-2.5"
               >
                 Continue
               </button>
@@ -995,9 +1104,11 @@ export default function NewPermitPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 sm:w-auto sm:py-2.5 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                {submitting ? "Creating..." : "Create Permit"}
+                className="w-full rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:py-2.5"
+              >
+                {submitting
+                  ? "Creating..."
+                  : "Create Permit"}
               </button>
             )}
           </div>
@@ -1037,7 +1148,10 @@ function SafetyFields({
             label="Hot work type"
             value={String(form.hotWorkType)}
             onChange={(value) =>
-              updateField("hotWorkType", value)
+              updateField(
+                "hotWorkType",
+                value
+              )
             }
             options={[
               {
@@ -1105,7 +1219,10 @@ function SafetyFields({
             type="number"
             value={String(form.lelPercent)}
             onChange={(value) =>
-              updateField("lelPercent", value)
+              updateField(
+                "lelPercent",
+                value
+              )
             }
           />
 
@@ -1172,7 +1289,10 @@ function SafetyFields({
             label="Space ID"
             value={String(form.spaceId)}
             onChange={(value) =>
-              updateField("spaceId", value)
+              updateField(
+                "spaceId",
+                value
+              )
             }
             required
           />
@@ -1598,7 +1718,8 @@ function ReviewStep({
         </h2>
 
         <p className="mt-1 text-sm text-slate-500">
-          Check the details before creating the permit.
+          Check the details before creating the
+          permit.
         </p>
       </div>
 
@@ -1660,12 +1781,17 @@ function ReviewStep({
             <p className="text-sm font-medium text-slate-200">
               Permit conflict check
             </p>
+
             <p className="mt-1 text-sm text-slate-500">
-              Checking for overlapping work in the selected area and time window.
+              Checking for overlapping work in the
+              selected area and time window.
             </p>
           </div>
+
           {checkingConflicts && (
-            <span className="shrink-0 text-xs text-slate-500">Checking…</span>
+            <span className="shrink-0 text-xs text-slate-500">
+              Checking…
+            </span>
           )}
         </div>
 
@@ -1674,22 +1800,28 @@ function ReviewStep({
             <p className="text-sm font-medium text-amber-400">
               Conflict check unavailable
             </p>
+
             <p className="mt-1 text-sm text-slate-400">
               {conflictCheckError}
             </p>
           </div>
         )}
 
-        {!checkingConflicts && !conflictCheckError && conflicts.length === 0 && (
-          <div className="mt-4 min-w-0 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
-            <p className="text-sm font-medium text-emerald-400">
-              No overlapping permits found
-            </p>
-            <p className="mt-1 text-sm text-slate-400">
-              This permit does not overlap another active workflow permit in the same location and time window.
-            </p>
-          </div>
-        )}
+        {!checkingConflicts &&
+          !conflictCheckError &&
+          conflicts.length === 0 && (
+            <div className="mt-4 min-w-0 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+              <p className="text-sm font-medium text-emerald-400">
+                No overlapping permits found
+              </p>
+
+              <p className="mt-1 text-sm text-slate-400">
+                This permit does not overlap another
+                active workflow permit in the same
+                location and time window.
+              </p>
+            </div>
+          )}
 
         {conflicts.length > 0 && (
           <div className="mt-4 space-y-3">
@@ -1710,13 +1842,18 @@ function ReviewStep({
                         : "bg-amber-500/10 text-amber-400"
                     }`}
                   >
-                    {conflict.isHighRisk ? "High-risk conflict" : "Overlap warning"}
+                    {conflict.isHighRisk
+                      ? "High-risk conflict"
+                      : "Overlap warning"}
                   </span>
+
                   <span className="text-sm font-semibold text-white">
                     {conflict.permitNumber}
                   </span>
+
                   <span className="text-xs text-slate-500">
-                    {formatType(conflict.type)} · {conflict.status}
+                    {formatType(conflict.type)} ·{" "}
+                    {conflict.status}
                   </span>
                 </div>
 
@@ -1725,11 +1862,18 @@ function ReviewStep({
                 </p>
 
                 <p className="mt-1 text-sm text-slate-400">
-                  {conflict.workDescription || "No work description"}
+                  {conflict.workDescription ||
+                    "No work description"}
                 </p>
 
                 <p className="mt-2 break-words text-xs text-slate-500">
-                  {new Date(conflict.plannedStart).toLocaleString()} → {new Date(conflict.plannedEnd).toLocaleString()}
+                  {new Date(
+                    conflict.plannedStart
+                  ).toLocaleString()}{" "}
+                  →{" "}
+                  {new Date(
+                    conflict.plannedEnd
+                  ).toLocaleString()}
                 </p>
               </div>
             ))}
@@ -1743,7 +1887,8 @@ function ReviewStep({
         </p>
 
         <p className="mt-1 text-sm text-slate-400">
-          The permit will start in DRAFT status and must be submitted before approvals can begin.
+          The permit will start in DRAFT status and
+          must be submitted before approvals can begin.
         </p>
       </div>
     </section>
@@ -1778,6 +1923,7 @@ function Field({
   placeholder,
   textarea = false,
   required = false,
+  min,
 }: {
   label: string;
   value: string;
@@ -1786,6 +1932,7 @@ function Field({
   placeholder?: string;
   textarea?: boolean;
   required?: boolean;
+  min?: string;
 }) {
   return (
     <div>
@@ -1808,6 +1955,7 @@ function Field({
         <input
           type={type}
           value={value}
+          min={min}
           onChange={(event) =>
             onChange(event.target.value)
           }
