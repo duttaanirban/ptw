@@ -471,11 +471,11 @@ export default function DashboardPage() {
                 </p>
               </div>
 
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex">
                 <button
                   onClick={() => void loadPermits(true)}
                   disabled={refreshing}
-                  className="rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+                  className="w-full rounded-xl border border-slate-700 px-4 py-2.5 text-sm font-medium text-slate-300 hover:bg-slate-800 disabled:opacity-50"
                 >
                   {refreshing ? "Refreshing..." : "Refresh"}
                 </button>
@@ -484,7 +484,7 @@ export default function DashboardPage() {
                   onClick={() =>
                     router.push("/permits/new")
                   }
-                  className="rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
+                  className="w-full rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
                 >
                   + New Permit
                 </button>
@@ -492,9 +492,9 @@ export default function DashboardPage() {
             </div>
           </header>
 
-          <div className="p-5 lg:p-8">
+          <div className="p-4 sm:p-5 lg:p-8">
             {/* Stats */}
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
               <StatCard
                 label="Total Permits"
                 value={stats.total}
@@ -525,7 +525,7 @@ export default function DashboardPage() {
             {/* Active / expiring section */}
             {(stats.active > 0 ||
               stats.expiringSoon > 0) && (
-              <div className="mt-6 grid gap-4 xl:grid-cols-2">
+              <div className="mt-5 grid gap-3 sm:gap-4 xl:grid-cols-2">
                 <InfoPanel
                   title="Active permits"
                   value={stats.active}
@@ -542,8 +542,8 @@ export default function DashboardPage() {
             )}
 
             {/* Filters */}
-            <div className="mt-8 rounded-2xl border border-slate-800 bg-slate-900">
-              <div className="border-b border-slate-800 p-5">
+            <div className="mt-6 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 sm:mt-8">
+              <div className="border-b border-slate-800 p-4 sm:p-5">
                 <div className="flex flex-col gap-4">
                   <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                     <div>
@@ -565,14 +565,14 @@ export default function DashboardPage() {
                     </button>
                   </div>
 
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-6">
+                  <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
                     <input
                       value={search}
                       onChange={(event) =>
                         setSearch(event.target.value)
                       }
                       placeholder="Search permit, work, area..."
-                      className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-white outline-none focus:border-emerald-500 xl:col-span-2"
+                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500 xl:col-span-2"
                     />
 
                     <select
@@ -580,7 +580,7 @@ export default function DashboardPage() {
                       onChange={(event) =>
                         setStatusFilter(event.target.value)
                       }
-                      className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-white outline-none"
+                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
                     >
                       <option value="ALL">
                         All Statuses
@@ -613,7 +613,7 @@ export default function DashboardPage() {
                       onChange={(event) =>
                         setTypeFilter(event.target.value)
                       }
-                      className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-white outline-none"
+                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
                     >
                       <option value="ALL">
                         All Types
@@ -637,7 +637,7 @@ export default function DashboardPage() {
                       onChange={(event) =>
                         setAreaFilter(event.target.value)
                       }
-                      className="rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 text-sm text-white outline-none"
+                      className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none"
                     >
                       <option value="ALL">
                         All Areas
@@ -732,8 +732,38 @@ export default function DashboardPage() {
                   </button>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[1050px]">
+                <>
+                  <div className="space-y-3 p-3 sm:hidden">
+                    {filteredPermits.map((permit) => {
+                      const expiring = isExpiringSoon(permit);
+                      const myPendingApproval = currentUser !== null && permit.approvals.some((approval) => approval.approverId === currentUser.id && approval.status === "PENDING");
+                      return (
+                        <button key={permit.id} type="button" onClick={() => router.push(`/permits/${permit.id}`)} className={`w-full rounded-2xl border border-slate-800 bg-slate-950 p-4 text-left transition active:scale-[0.99] hover:bg-slate-900 ${expiring ? "ring-1 ring-amber-500/20" : ""}`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-semibold text-white">{permit.permitNumber}</p>
+                              {myPendingApproval && <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold text-amber-400">YOUR APPROVAL</span>}
+                            </div>
+                            <p className="mt-1 text-sm text-slate-500">{formatType(permit.type)}</p>
+                          </div>
+                          <span className={`shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium ${statusClasses(permit.status)}`}>{formatStatus(permit.status)}</span>
+                        </div>
+                        <p className="mt-3 line-clamp-2 text-sm leading-5 text-slate-300">{permit.workDescription}</p>
+                        <div className="mt-4 grid grid-cols-2 gap-3 text-xs">
+                          <div><p className="text-slate-600">Location</p><p className="mt-1 text-slate-300">{permit.area.name} · {permit.plant.code}</p></div>
+                          <div><p className="text-slate-600">Requester</p><p className="mt-1 text-slate-300">{permit.requester.name}</p></div>
+                          <div><p className="text-slate-600">Starts</p><p className="mt-1 text-slate-400">{formatDate(permit.plannedStart)}</p></div>
+                          <div><p className="text-slate-600">Ends</p><p className="mt-1 text-slate-400">{formatDate(permit.plannedEnd)}</p></div>
+                        </div>
+                        {expiring && <p className="mt-3 text-xs font-medium text-amber-400">Expires within 2h</p>}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="hidden overflow-x-auto sm:block">
+                    <table className="w-full min-w-262.5">
                     <thead>
                       <tr className="border-b border-slate-800 text-left text-xs uppercase tracking-wider text-slate-500">
                         <th className="px-5 py-4">
@@ -788,7 +818,7 @@ export default function DashboardPage() {
                               }
                               className={`cursor-pointer border-b border-slate-800/70 transition hover:bg-slate-800/40 ${
                                 expiring
-                                  ? "bg-amber-500/[0.03]"
+                                  ? "bg-amber-500/3"
                                   : ""
                               }`}
                             >
@@ -875,8 +905,9 @@ export default function DashboardPage() {
                         }
                       )}
                     </tbody>
-                  </table>
-                </div>
+                    </table>
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -935,7 +966,7 @@ function InfoPanel({
     <div
       className={`rounded-2xl border p-5 ${
         warning
-          ? "border-amber-500/20 bg-amber-500/[0.04]"
+          ? "border-amber-500/20 bg-amber-500/4"
           : "border-slate-800 bg-slate-900"
       }`}
     >

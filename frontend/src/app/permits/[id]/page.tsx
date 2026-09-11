@@ -646,9 +646,9 @@ export default function PermitDetailPage() {
       : `/scan/${permit.id}`;
 
   return (
-    <main className="min-h-screen bg-slate-950 text-white">
-      <div className="mx-auto max-w-7xl px-5 py-8 lg:px-8">
-        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+    <main className="min-h-screen overflow-x-hidden bg-slate-950 text-white">
+      <div className="mx-auto max-w-7xl min-w-0 px-3 py-4 sm:px-5 sm:py-8 lg:px-8">
+        <div className="mb-5 flex min-w-0 flex-col gap-4 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <button
               onClick={() => router.push("/")}
@@ -657,21 +657,21 @@ export default function PermitDetailPage() {
               ← Back to dashboard
             </button>
 
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl font-bold">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+              <h1 className="max-w-full wrap-break-word text-2xl font-bold sm:text-3xl">
                 {permit.permitNumber}
               </h1>
 
               <StatusBadge status={permit.status} />
             </div>
 
-            <p className="mt-2 text-slate-500">
+            <p className="mt-2 wrap-break-word text-sm leading-6 text-slate-500 sm:text-base">
               {formatType(permit.type)} ·{" "}
               {permit.workDescription}
             </p>
           </div>
 
-          <div className="rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-right">
+          <div className="w-full min-w-0 rounded-xl border border-slate-800 bg-slate-900 px-4 py-3 text-left sm:w-auto sm:max-w-xs sm:text-right">
             <p className="text-xs text-slate-500">
               Requested by
             </p>
@@ -692,12 +692,12 @@ export default function PermitDetailPage() {
           </div>
         )}
 
-        <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
-          <div className="space-y-6">
+        <div className="grid min-w-0 gap-4 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="min-w-0 space-y-4 sm:space-y-6">
             <Section
               title="Work authorization"
             >
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid min-w-0 gap-4 sm:grid-cols-2">
                 <Detail
                   label="Contractor / team"
                   value={permit.contractorTeam}
@@ -750,7 +750,7 @@ export default function PermitDetailPage() {
                 />
               </div>
 
-              <div className="mt-5 grid gap-4 sm:grid-cols-3">
+              <div className="mt-4 grid min-w-0 gap-4 sm:mt-5 sm:grid-cols-3">
                 <ListDetail
                   label="Hazards"
                   values={permit.hazards}
@@ -785,12 +785,12 @@ export default function PermitDetailPage() {
                           )}
                         </p>
 
-                        <p className="mt-1 text-sm text-slate-500">
+                        <p className="mt-1 wrap-break-word text-sm text-slate-500">
                           {approval.approver.name}
                         </p>
                       </div>
 
-                      <div className="text-left sm:text-right">
+                      <div className="min-w-0 text-left sm:text-right">
                         <ApprovalBadge
                           status={
                             approval.status
@@ -840,7 +840,7 @@ export default function PermitDetailPage() {
             )}
 
             <Section title="Audit timeline">
-              <div className="space-y-5">
+              <div className="space-y-4 sm:space-y-5">
                 {permit.auditLogs.map(
                   (log, index) => (
                     <div
@@ -870,7 +870,7 @@ export default function PermitDetailPage() {
                           </span>
                         </div>
 
-                        <p className="mt-1 text-sm text-slate-500">
+                        <p className="mt-1 wrap-break-word text-sm text-slate-500">
                           {log.actor.name} ·{" "}
                           {formatRole(
                             log.actor.role
@@ -889,7 +889,7 @@ export default function PermitDetailPage() {
                         )}
 
                         {log.comment && (
-                          <p className="mt-2 text-sm text-slate-400">
+                          <p className="mt-2 wrap-break-word text-sm leading-6 text-slate-400">
                             {log.comment}
                           </p>
                         )}
@@ -901,7 +901,7 @@ export default function PermitDetailPage() {
                                 View field changes
                                 </summary>
 
-                                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                                <div className="mt-3 grid min-w-0 gap-3 md:grid-cols-2">
                                 <ValueBlock
                                     label="Before"
                                     value={formatAuditValue(
@@ -932,7 +932,7 @@ export default function PermitDetailPage() {
             </Section>
           </div>
 
-          <aside className="space-y-6">
+          <aside className="min-w-0 space-y-4 sm:space-y-6">
             <Section title="Actions">
               {isRequester &&
                 ["DRAFT", "PENDING_APPROVAL", "APPROVED"].includes(
@@ -1043,12 +1043,12 @@ export default function PermitDetailPage() {
                       placeholder="One per line"
                     />
 
-                    <div className="flex gap-2">
+                    <div className="flex flex-col gap-2 sm:flex-row">
                       <button
                         type="button"
                         onClick={handleSaveEdit}
                         disabled={editLoading}
-                        className="flex-1 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
+                        className="min-h-11 flex-1 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:opacity-50"
                       >
                         {editLoading ? "Saving..." : "Save changes"}
                       </button>
@@ -1060,7 +1060,7 @@ export default function PermitDetailPage() {
                           setError("");
                         }}
                         disabled={editLoading}
-                        className="flex-1 rounded-xl border border-slate-700 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50"
+                        className="min-h-11 flex-1 rounded-xl border border-slate-700 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50"
                       >
                         Cancel
                       </button>
@@ -1091,7 +1091,7 @@ export default function PermitDetailPage() {
                     }
                     placeholder="Approval comment (optional). For rejection, a reason is required."
                     rows={3}
-                    className="mb-4 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
+                    className="mb-4 min-h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
                   />
 
                   <SignaturePad
@@ -1133,7 +1133,7 @@ export default function PermitDetailPage() {
                     }
                     placeholder="Reason for suspension"
                     rows={3}
-                    className="mb-3 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
+                    className="mb-3 min-h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
                   />
 
                   <ActionButton
@@ -1164,7 +1164,7 @@ export default function PermitDetailPage() {
                     }
                     placeholder="Describe the work completed and site restoration..."
                     rows={5}
-                    className="mb-3 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
+                    className="mb-3 min-h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
                   />
 
                   <ActionButton
@@ -1186,7 +1186,7 @@ export default function PermitDetailPage() {
                     }
                     placeholder="Verification comment (optional)"
                     rows={3}
-                    className="mb-3 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
+                    className="mb-3 min-h-11 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white outline-none focus:border-emerald-500"
                   />
 
                   <ActionButton
@@ -1243,7 +1243,7 @@ export default function PermitDetailPage() {
                   to quickly check the permit status.
                 </p>
 
-                <p className="mt-3 break-all text-[11px] text-slate-600">
+                <p className="mt-3 max-w-full break-all text-[11px] leading-5 text-slate-600">
                   {publicPermitUrl}
                 </p>
               </div>
@@ -1271,7 +1271,7 @@ export default function PermitDetailPage() {
                   )}
                 </p>
 
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 wrap-break-word text-sm text-slate-500">
                   to{" "}
                   {formatDate(
                     permit.plannedEnd
@@ -1480,7 +1480,7 @@ function SignaturePad({
           type="button"
           onClick={clearSignature}
           disabled={!value || isDrawing}
-          className="rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+          className="min-h-10 shrink-0 rounded-lg border border-slate-700 px-3 py-2 text-xs font-medium text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Clear
         </button>
@@ -1491,7 +1491,7 @@ function SignaturePad({
           ref={canvasRef}
           width={800}
           height={240}
-          className="block h-40 w-full touch-none cursor-crosshair"
+          className="block h-36 w-full touch-none cursor-crosshair sm:h-40"
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={finishDrawing}
@@ -1502,7 +1502,7 @@ function SignaturePad({
         />
       </div>
 
-      <div className="mt-2 flex items-center justify-between text-xs">
+      <div className="mt-2 flex flex-col gap-1 text-xs sm:flex-row sm:items-center sm:justify-between">
         <span className="text-slate-600">
           Draw with mouse, stylus, or touch.
         </span>
@@ -1523,7 +1523,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+    <section className="min-w-0 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900 p-4 sm:p-5">
       <h2 className="mb-5 text-sm font-semibold uppercase tracking-wider text-slate-300">
         {title}
       </h2>
@@ -1546,7 +1546,7 @@ function Detail({
         {label}
       </p>
 
-      <p className="mt-1 whitespace-pre-wrap text-sm text-slate-300">
+      <p className="mt-1 wrap-break-word whitespace-pre-wrap text-sm leading-6 text-slate-300">
         {value || "—"}
       </p>
     </div>
@@ -1567,7 +1567,7 @@ function ListDetail({
       </p>
 
       {values.length === 0 ? (
-        <p className="mt-2 text-sm text-slate-500">
+        <p className="mt-2 wrap-break-word text-sm leading-6 text-slate-500">
           None specified
         </p>
       ) : (
@@ -1666,7 +1666,7 @@ function TypeSpecificSection({
 
     return (
       <Section title="Confined space controls">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid min-w-0 gap-4 sm:grid-cols-2">
           <Detail
             label="Space ID"
             value={details.spaceId}
@@ -1750,7 +1750,7 @@ function TypeSpecificSection({
 
     return (
       <Section title="Working at height controls">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid min-w-0 gap-4 sm:grid-cols-2">
           <Detail
             label="Work height"
             value={`${details.workHeightMeters} m`}
@@ -1809,7 +1809,7 @@ function TypeSpecificSection({
 
   return (
     <Section title="Electrical / LOTO controls">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid min-w-0 gap-4 sm:grid-cols-2">
         <Detail
           label="Equipment tag"
           value={details.equipmentTag}
@@ -2034,14 +2034,14 @@ function EditField({
           onChange={(event) => onChange(event.target.value)}
           placeholder={placeholder}
           rows={4}
-          className="w-full resize-none rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500"
+          className="min-h-11 w-full resize-none rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500"
         />
       ) : (
         <input
           type={type}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500"
+          className="min-h-11 w-full rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm text-white outline-none focus:border-emerald-500"
         />
       )}
     </div>

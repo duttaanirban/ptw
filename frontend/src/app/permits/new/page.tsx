@@ -686,8 +686,8 @@ export default function NewPermitPage() {
 
   return (
     <main className="min-h-screen bg-slate-950 text-white">
-      <div className="mx-auto max-w-6xl px-5 py-8 lg:px-8">
-        <div className="mb-8 flex items-center justify-between">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-5 sm:py-8 lg:px-8">
+        <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <button
               onClick={() => router.push("/")}
@@ -705,6 +705,11 @@ export default function NewPermitPage() {
             </p>
           </div>
 
+          <div className="sm:hidden">
+            <p className="text-xs uppercase tracking-wider text-slate-500">Step</p>
+            <p className="mt-1 text-lg font-bold">{step} / 4</p>
+          </div>
+
           <div className="hidden text-right sm:block">
             <p className="text-xs uppercase tracking-wider text-slate-500">
               Step
@@ -715,7 +720,7 @@ export default function NewPermitPage() {
           </div>
         </div>
 
-        <div className="mb-8 grid grid-cols-4 gap-2">
+        <div className="mb-6 grid grid-cols-4 gap-1.5 sm:mb-8 sm:gap-2">
           {[1, 2, 3, 4].map((item) => (
             <div key={item}>
               <div
@@ -727,7 +732,7 @@ export default function NewPermitPage() {
               />
 
               <p
-                className={`mt-2 text-xs ${
+                className={`mt-1 text-[10px] leading-4 sm:mt-2 sm:text-xs ${
                   item <= step
                     ? "text-emerald-400"
                     : "text-slate-600"
@@ -744,7 +749,7 @@ export default function NewPermitPage() {
 
         <form
           onSubmit={handleSubmit}
-          className="rounded-2xl border border-slate-800 bg-slate-900 p-6 lg:p-8"
+          className="rounded-2xl border border-slate-800 bg-slate-900 p-4 sm:p-6 lg:p-8"
         >
           {step === 1 && (
             <section>
@@ -762,7 +767,7 @@ export default function NewPermitPage() {
                 </p>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-2">
                 {permitTypes.map((item) => (
                   <button
                     key={item.value}
@@ -770,7 +775,7 @@ export default function NewPermitPage() {
                     onClick={() =>
                       setType(item.value)
                     }
-                    className={`rounded-2xl border p-5 text-left transition ${
+                    className={`min-h-[120px] rounded-2xl border p-4 text-left transition sm:p-5 ${
                       type === item.value
                         ? "border-emerald-500 bg-emerald-500/10"
                         : "border-slate-700 bg-slate-950 hover:border-slate-600"
@@ -801,7 +806,7 @@ export default function NewPermitPage() {
                 </h2>
               </div>
 
-              <div className="grid gap-5 md:grid-cols-2">
+              <div className="grid gap-5 sm:grid-cols-2">
                 <Field
                   label="Contractor / team"
                   value={form.contractorTeam}
@@ -907,7 +912,7 @@ export default function NewPermitPage() {
                 />
               </div>
 
-              <div className="grid gap-5 md:grid-cols-3">
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 <Field
                   label="Hazards"
                   value={form.hazards}
@@ -968,12 +973,12 @@ export default function NewPermitPage() {
             />
           )}
 
-          <div className="mt-8 flex justify-between border-t border-slate-800 pt-6">
+          <div className="mt-8 flex flex-col gap-3 border-t border-slate-800 pt-6 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
               onClick={previousStep}
               disabled={step === 1}
-              className="rounded-xl border border-slate-700 px-5 py-2.5 text-sm text-slate-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-30"
+              className="w-full rounded-xl border border-slate-700 px-5 py-3 text-sm text-slate-300 sm:w-auto sm:py-2.5 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-30"
             >
               Back
             </button>
@@ -982,7 +987,7 @@ export default function NewPermitPage() {
               <button
                 type="button"
                 onClick={nextStep}
-                className="rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400"
+                className="w-full rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 sm:w-auto sm:py-2.5 hover:bg-emerald-400"
               >
                 Continue
               </button>
@@ -990,7 +995,7 @@ export default function NewPermitPage() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="rounded-xl bg-emerald-500 px-6 py-2.5 text-sm font-semibold text-slate-950 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
+                className="w-full rounded-xl bg-emerald-500 px-6 py-3 text-sm font-semibold text-slate-950 sm:w-auto sm:py-2.5 hover:bg-emerald-400 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                 {submitting ? "Creating..." : "Create Permit"}
               </button>
@@ -1027,7 +1032,7 @@ function SafetyFields({
           </h2>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2">
           <SelectField
             label="Hot work type"
             value={String(form.hotWorkType)}
@@ -1162,7 +1167,7 @@ function SafetyFields({
           </h2>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2">
           <Field
             label="Space ID"
             value={String(form.spaceId)}
@@ -1312,7 +1317,7 @@ function SafetyFields({
           </h2>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2">
           <Field
             label="Work height (m)"
             type="number"
@@ -1428,7 +1433,7 @@ function SafetyFields({
         </h2>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-2">
+      <div className="grid gap-5 sm:grid-cols-2">
         <Field
           label="Equipment tag"
           value={String(form.equipmentTag)}
@@ -1597,7 +1602,7 @@ function ReviewStep({
         </p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2">
         <ReviewItem
           label="Permit type"
           value={formatType(type)}
@@ -1650,7 +1655,7 @@ function ReviewStep({
       </div>
 
       <div className="mt-6 rounded-xl border border-slate-800 bg-slate-950 p-4">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-sm font-medium text-slate-200">
               Permit conflict check
@@ -1676,7 +1681,7 @@ function ReviewStep({
         )}
 
         {!checkingConflicts && !conflictCheckError && conflicts.length === 0 && (
-          <div className="mt-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
+          <div className="mt-4 min-w-0 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3">
             <p className="text-sm font-medium text-emerald-400">
               No overlapping permits found
             </p>
@@ -1691,7 +1696,7 @@ function ReviewStep({
             {conflicts.map((conflict) => (
               <div
                 key={conflict.permitId}
-                className={`rounded-xl border p-4 ${
+                className={`min-w-0 rounded-xl border p-4 ${
                   conflict.isHighRisk
                     ? "border-red-500/30 bg-red-500/5"
                     : "border-amber-500/20 bg-amber-500/5"
@@ -1723,7 +1728,7 @@ function ReviewStep({
                   {conflict.workDescription || "No work description"}
                 </p>
 
-                <p className="mt-2 text-xs text-slate-500">
+                <p className="mt-2 break-words text-xs text-slate-500">
                   {new Date(conflict.plannedStart).toLocaleString()} → {new Date(conflict.plannedEnd).toLocaleString()}
                 </p>
               </div>
@@ -1732,7 +1737,7 @@ function ReviewStep({
         )}
       </div>
 
-      <div className="mt-6 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
+      <div className="mt-6 min-w-0 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
         <p className="text-sm font-medium text-amber-400">
           After creation
         </p>
@@ -1753,12 +1758,12 @@ function ReviewItem({
   value: string;
 }) {
   return (
-    <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+    <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-950 p-4">
       <p className="text-xs uppercase tracking-wider text-slate-500">
         {label}
       </p>
 
-      <p className="mt-2 whitespace-pre-line text-sm text-slate-200">
+      <p className="mt-2 break-words whitespace-pre-line text-sm text-slate-200">
         {value || "—"}
       </p>
     </div>
@@ -1871,7 +1876,7 @@ function BooleanField({
   onChange: (value: boolean) => void;
 }) {
   return (
-    <label className="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-700 bg-slate-950 p-4">
+    <label className="flex min-h-12 cursor-pointer items-center gap-3 rounded-xl border border-slate-700 bg-slate-950 p-4">
       <input
         type="checkbox"
         checked={checked}
